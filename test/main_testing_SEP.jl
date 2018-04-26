@@ -1,14 +1,9 @@
 if !isdefined(:DataAccess); include("DataAccess.jl"); end;
-# if !isdefined(:PolyaGammaGPC); include("../src/XGPC.jl"); end;
-if !isdefined(:KernelFunctions); include("KernelFunctions.jl"); end;
-if !isdefined(:KMeansModule); include("KMeansModule.jl"); end;
  # include("../src/XGPC.jl");
 # include("../src/DataAugmentedClassifiers.jl")
 # include("../src/DataAugmentedClassifierFunctions.jl")
 using PyPlot
-using DataAccess
-using KMeansModule
-using PyCall
+using RCall
 @pyimport gpflow
 @pyimport tensorflow
 doPlot = false

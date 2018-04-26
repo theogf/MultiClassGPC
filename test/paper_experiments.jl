@@ -3,17 +3,13 @@
 # Compute also the brier score and the logscore
 
 push!(LOAD_PATH,".")
-# if !isdefined(:DataAccess); include("DataAccess.jl"); end;
 if !isdefined(:TestFunctions); include("paper_experiment_functions.jl");end;
 # using TestFunctions
-using PyPlot
 using DataAccess
-# println("Using $(Threads.nthreads()) threads")
-# export JULIA_NUM_THREADS = 4
-#Compare Platt, B-BSVM, ECM and GPC
+#Compare SEP, SVGP, A&R, TT and X-MGPC
 
 #Methods and scores to test
-doMultiClass = true
+doXMGPC = true
 doSEP = false
 doTT = false
 doSVGP = false
