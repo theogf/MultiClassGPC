@@ -1,0 +1,20 @@
+For the streaming
+	git clone https://github.com/thangbui/streaming_sparse_gp.git
+	Correct all gap = N/3 by gap = int(N/3)
+	put gpflow 0.4.0
+
+
+For multiclass
+	Ruiz Augment and Reduce
+		git clone https://github.com/franrruiz/augment-reduce
+		sudo apt install csh
+		install matlab
+		install libgsl-dev
+		run instruction from main_run.m:
+			gsl-config --cflags --libs   (this gives <TERMINAL_OUTPUT>)
+			mex CFLAGS="\$CFLAGS" -largeArrayDims src/infer/compute_psi.cpp -outdir src/infer
+			mex CFLAGS="\$CFLAGS" -largeArrayDims src/infer/increase_follow_gradients.cpp -outdir src/infer
+			mex CFLAGS="\$CFLAGS" -largeArrayDims src/aux/keep_first_label_c.cpp -outdir src/aux
+			mex CFLAGS="\$CFLAGS" <TERMINAL_OUTPUT> -largeArrayDims src/infer/compute_predictions_c.cpp -outdir src/infer
+			mex CFLAGS="\$CFLAGS" <TERMINAL_OUTPUT> src/aux/multirandperm.cpp -outdir src/aux
+		Pkg.add("MATLAB")
