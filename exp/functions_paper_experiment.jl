@@ -1,6 +1,6 @@
 # Paper_Experiment_Functions.jl
 #= ---------------- #
-Set of datatype and functions for efficient testing.
+Set of functions for efficient testing.
 # ---------------- =#
 
 
@@ -11,10 +11,19 @@ Set of datatype and functions for efficient testing.
 #using ScikitLearn;
 #if !isdefined(:SGDClassifier); @sk_import linear_model: SGDClassifier; end;
 using PyCall
+using MATLAB
 @pyimport gpflow
 @pyimport tensorflow as tf
-using RCall
-R"source('EP_stochastic.R')"
+mat"addpath ~/Competitors/augment-reduce/src"
+mat"addpath ~/Competitors/augment-reduce/src/aux"
+mat"addpath ~/Competitors/augment-reduce/src/infer"
+@pyimport TTGP.projectors as ttgpproj
+@pyimport TTGP.covariance as ttgpcovariance
+@pyimport TTGP.gpc_runner as ttgpcrun
+@pyimport sklearn.datasets as sk
+@pyimport sklearn.model_selection as sp
+# using RCall
+# R"source('EP_stochastic.R')"
 using Distributions
 # using PyPlot
 import OMGP
@@ -62,7 +71,7 @@ function DefaultParameters()
 end
 
 #Create a default parameters dictionary for XGPC
-function XGPCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,main_param=DefaultParameters())
+function XGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["Stochastic"] = Stochastic #Is the method stochastic
   param["Sparse"] = Sparse #Is the method using inducing points
@@ -82,30 +91,43 @@ function XGPCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,m
   return param
 end
 
-#Create a default parameters dictionary for BSVM
-function BSVMParameters(;Stochastic=true,NonLinear=true,Sparse=true,ALR=true,main_param=DefaultParameters())
+#Create a default parameters dictionary for SVGPMC (similar to XGPMC)
+function SVGPMCParameters(;Stochastic=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
-  param["Stochastic"] = Stochastic #Is the method stochastic
-  param["Sparse"] = Sparse #Is the method using inducing points
-  param["NonLinear"] = NonLinear #Is the method using kernels
-  param["ALR"] = ALR #Is the method using adpative learning rate (in case of the stochastic case)
+  param["Sparse"] = true
+  if Sparse
+    param["Stochastic"] = Stochastic
+  else
+    param["Stochastic"] = false
+  end
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
-  param["ATFrequency"] = 1 #Number of iterations between every autotuning
-  param["κ_s"] = 1.0;  param["τ_s"] = 100; #Parameters for learning rate of Stochastic gradient descent when ALR is not used
-  param["ϵ"] = main_param["ϵ"]; param["Window"] = main_param["Window"]; #Convergence criteria (checking parameters norm variation on a window)
+  param["ϵ"] = main_param["ϵ"]
+  param["Kernel"] = gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false)
+  # param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+  # param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"]*ones(main_param["nFeatures"])),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+  param["BatchSize"] = main_param["BatchSize"]
+  param["M"] = main_param["M"]
+  param["SmoothingWindow"] = main_param["Window"]
   param["ConvCriter"] = main_param["ConvCriter"]
-  param["Kernels"] = OMGP.RBFKernel(main_param["Θ"]) #Kernel creation (standardized for now)
-  param["Verbose"] = if typeof(main_param["Verbose"]) == Bool; main_param["Verbose"] ? 2 : 0; else; param["Verbose"] = main_param["Verbose"]; end; #Verbose
-  param["BatchSize"] = main_param["BatchSize"] #Number of points used for stochasticity
-  param["FixedInitialization"] = main_param["FixedInitialization"]
-  param["M"] = main_param["M"] #Number of inducing points
-  param["γ"] = main_param["γ"] #Variance of introduced noise
   return param
 end
 
-#Create a default parameters dictionary for SVGPC (similar to BSVM)
-function SVGPCParameters(;Sparse=true,Stochastic=false,main_param=DefaultParameters())
+#Create a default parameters dictionary for EPGPC (similar to XGPMC)
+function EPGPMCParameters(;main_param=DefaultParameters())
+  param = Dict{String,Any}()
+  param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
+  param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
+  param["ϵ"] = main_param["ϵ"]
+  param["BatchSize"] = main_param["BatchSize"]
+  param["M"] = main_param["M"]
+  param["SmoothingWindow"] = main_param["Window"]
+  param["ConvCriter"] = main_param["ConvCriter"]
+  return param
+end
+
+#Create a default parameters dictionary for TTGPC (similar to XGPMC)
+function TTGPMCParameters(;Stochastic=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["Sparse"] = Sparse
   if Sparse
@@ -126,12 +148,13 @@ function SVGPCParameters(;Sparse=true,Stochastic=false,main_param=DefaultParamet
   return param
 end
 
-#Create a default parameters dictionary for EPGPC (similar to BSVM)
-function EPGPCParameters(;main_param=DefaultParameters())
+
+#Create a default parameters dictionary for ARMC (similar to XGPMC)
+function ARMCParameters(;Stochastic=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
+  param["maxIter"]=main_param["maxIter"]
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
-  param["ϵ"] = main_param["ϵ"]
   param["BatchSize"] = main_param["BatchSize"]
   param["M"] = main_param["M"]
   param["SmoothingWindow"] = main_param["Window"]
@@ -139,54 +162,25 @@ function EPGPCParameters(;main_param=DefaultParameters())
   return param
 end
 
-function LogRegParameters(;main_param=DefaultParameters())
-    param = Dict{String,Any}()
-    param["Penalty"]="l2"
-    param["γ"] =main_param["γ"]
-    param["ϵ"]=main_param["ϵ"]
-    param["ConvCriter"]=main_param["ConvCriter"]
-    return param
-end
-
 
 #Create a model given the parameters passed in p
 function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
-    if tm.MethodType == "BXGPC"
-        tm.Model[i] = OMGP.BatchXGPC(X,y;kernel=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
+    if tm.MethodType == "BXGPMC"
+        tm.Model[i] = OMGP.MultiClass(X,y;kernel=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
             VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(y) : [0.0])
-    elseif tm.MethodType == "SXGPC"
-        tm.Model[i] = OMGP.SparseXGPC(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],m=tm.Param["M"],
+    elseif tm.MethodType == "SXGPMC"
+        tm.Model[i] = OMGP.SparseMultiClass(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],m=tm.Param["M"],
             kernel=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
             SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0])
-    elseif tm.MethodType == "LBSVM"
-        tm.Model[i] = OMGP.LinearBSVM(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],
-            Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
-            SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(y) : [0.0])
-    elseif tm.MethodType == "BBSVM"
-        tm.Model[i] = OMGP.BatchBSVM(X,y;kernel=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
-            VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(y) : [0.0])
-    elseif tm.MethodType == "SBSVM"
-        tm.Model[i] = OMGP.SparseBSVM(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],m=tm.Param["M"],
-            kernel=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],AutotuningFrequency=tm.Param["ATFrequency"],
-            AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
-            SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0])
-    elseif tm.MethodType == "SVGPC"
-        if tm.Param["Sparse"]
-            if tm.Param["Stochastic"]
-                #Stochastic Sparse SVGPC model
-                tm.Model[i] = gpflow.models[:SVGP](X, reshape((y+1)./2,(length(y),1)),kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:Bernoulli](), Z=OMGP.KMeansInducingPoints(X,tm.Param["M"],10), minibatch_size=tm.Param["BatchSize"])
-            else
-                #Sparse SVGPC model
-                tm.Model[i] = gpflow.models[:SVGP](X, reshape((y+1)./2,(size(y,1),1)),kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:Bernoulli](), Z=OMGP.KMeansInducingPoints(X,tm.Param["M"],10))
-            end
+    elseif tm.MethodType == "SVGPMC"
+        if tm.Param["Stochastic"]
+            #Stochastic Sparse SVGPC model
+            tm.Model[i] = gpflow.models[:SVGP](X, reshape((y+1)./2,(length(y),1)),kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:Bernoulli](), Z=OMGP.KMeansInducingPoints(X,tm.Param["M"],10), minibatch_size=tm.Param["BatchSize"])
         else
-            #Basic SVGPC model
-            tm.Model[i] = gpflow.vgp[:VGP](X, reshape((y+1)./2,(size(y,1),1)),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:Bernoulli]())
-            if !tm.Param["Autotuning"]
-                tm.Model[i][:kern][:fixed]=true;
-            end
+            #Sparse SVGPC model
+            tm.Model[i] = gpflow.models[:SVGP](X, reshape((y+1)./2,(size(y,1),1)),kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:Bernoulli](), Z=OMGP.KMeansInducingPoints(X,tm.Param["M"],10))
         end
-    elseif tm.MethodType == "LogReg"
+    elseif tm.MethodType == "TTGPMC"
         tm.Results["Time"][i]=[time_ns()]
         tm.Model[i] = SGDClassifier(loss="log", penalty="l2", alpha=tm.Param["γ"],
          fit_intercept=true, tol=tm.Param["ϵ"], shuffle=true,
@@ -194,39 +188,13 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
         push!(tm.Results["Time"][i],time_ns())
     elseif tm.MethodType == "EPGPC"
         tm.Model[i] = 0
+    elseif tm.MethodType == "ARMC"
+        tm.Model[i] = Dict{String,Any}(); tm.Model[i]["method_name"] = "softmax_a&r";
+        tm.Model[i]["maxIter"]=tm.Param["maxIter"]; tm.Model[i]["B"] = tm.Param["BatchSize"]
+        tm.Model[i]["lag_mexFile"]=1; tm.Model[i]["s2prior"] = Inf; param["step_eta"] = 0.02;
+        tm.Model[i]["flag_imp_sampling"] = 0; param["computePredTrain"] = 0;
     end
 end
-
-function LogLikeConvergence(model::OMGP.GPModel,iter::Integer,X_test,y_test)
-    if iter==1
-        push!(model.evol_conv,Inf)
-        y_p = model.predictproba(X_test)
-        loglike = zeros(y_p)
-        loglike[y_test.==1] = log.(y_p[y_test.==1])
-        loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
-        new_params = mean(loglike)
-        model.prev_params = new_params
-        return Inf
-    end
-    if !model.Stochastic || iter%10 == 0
-        y_p = model.predictproba(X_test)
-        loglike = zeros(y_p)
-        loglike[y_test.==1] = log.(y_p[y_test.==1])
-        loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
-        new_params = mean(loglike)
-        push!(model.evol_conv,abs(new_params-model.prev_params)/((abs(model.prev_params)+abs(new_params))/2.0))
-        model.prev_params = new_params
-    elseif model.Stochastic
-        return 1
-    end
-    if model.Stochastic
-        return mean(model.evol_conv[max(1,length(model.evol_conv)-model.SmoothingWindow+1):end])
-    else
-        return model.evol_conv[end]
-    end
-end
-
-
 
 function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel_fixed =false, callback=nothing)
     # we'll make use of this later when we use a XiTransform
@@ -275,121 +243,25 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
     model[:anchor](model[:enquire_session]())
 end
 
-
-#train the model on trainin set (X,y) for #iterations
-function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations)
-  if typeof(tm.Model[i]) <: OMGP.GPModel
-    tm.Model[i].train(iterations=iterations)
-  elseif tm.MethodType == "SVGPC"
-      prev= tm.Param["ConvCriter"] == "HOML" ? -Inf : Inf*ones(2*tm.Param["M"])
-      logconv = Array{Float64,1}()
-      convfrequency = tm.Param["ConvCriter"] == "HOML" ? 10 : 1
-      @pydef type Logger <: gpflow.actions[:Action]
-          __init__(self,model) = begin
-              self[:model] = model
-              self[:i] = 1
-          end
-          convcriter(self,ctx) =  begin
-              error("Not correctly implemented stopping criteria")
-              if self[:i]%convfrequency == 0
-                  if tm.Param["ConvCriter"] == "HOML"
-                    y_p = tm.Model[i].predictproba(X_test)
-                    loglike = zeros(y_p)
-                    loglike[y_test.==1] = log.(y_p[y_test.==1])
-                    loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
-                    new_mean = mean(loglike)
-                    conv = abs(new_mean-prev)/((abs(prev)+abs(new_mean))/2.0)
-                    push!(logconv,conv)
-                else
-                    q_new = [tm.Model[i][:q_mu][:value][:,1];diag(tm.Model[i][:q_sqrt][:value][:,:,1])]
-                    conv = mean(abs.(q_new-q_prev)./((abs.(prev)+abs.(q_new))/2.0))
-                    prev[:] = q_new
-                    push!(logconv,conv)
-                end
-                  averaged_conv = mean(logconv[max(1,self[:i]-tm.Param["SmoothingWindow"]+1):self[:i]])
-                  if averaged_conv < tm.Param["ϵ"]
-                      return false
-                  end
-              end #endif
-              self[:i]+=1
-              return true
-          end
-      end
-      a = Logger(tm.Model[i])
-    tm.Model[i][:optimize](maxiter=iterations,callback=a[:convcriter],tensorflow.train[:AdamOptimizer]())
-    println("Training ended after $(tm.Model[:num_fevals]) iterations")
-  elseif tm.MethodType == "LogReg"
-    tm.Model[i][:max_iter] = iterations
-    tm.Model[i][:fit](X,y)
-  elseif tm.MethodType == "SVM"
-    tm.Model[i][:max_iter] = iterations
-    tm.Model[i][:fit](X,y)
-  elseif tm.MethodType == "EPGPC"
-    m = tm.Param["M"]; bs = tm.Param["BatchSize"]; pointopt=tm.Param["PointOptimization"]; autotu=tm.Param["Autotuning"];
-    ind_points = OMGP.KMeansInducingPoints(X,tm.Param["M"],10)
-    tm.Model[i] = R"epGPCInternal($X, $y, inducingpoints=ind_points, n_pseudo_inputs = $m, Xtest = $X_test, Ytest= $y_test, minibatchsize = $bs, maxiter=$iterations,indpointsopt= $pointopt, hyperparamopt=$autotu)"
-  end
-end
-
-function InitConvergence(tm,i)
-    tm.Results["Accuracy"][i] = Array{Float64,1}()
-    tm.Results["MeanL"][i] = Array{Float64,1}()
-    tm.Results["MedianL"][i] = Array{Float64,1}()
-    tm.Results["ELBO"][i] = Array{Float64,1}()
-    tm.Results["Param"][i] = Array{Float64,1}()
-    tm.Results["Coeff"][i] = Array{Float64,1}()
-end
-
-#Compute interesting value for non GP models
-function ConvergenceTest(tm,i,X_test,y_test;X=0)
-    y_p = ComputePredictionAccuracy(tm,i,X,X_test)
-    loglike = zeros(y_p)
-    for i in 1:length(y_p)
-        if y_test[i] == 1
-            loglike[i] = y_p[i] <= 0 ? -Inf : log.(y_p[i])
-        elseif y_test[i] == -1
-            loglike[i] = y_p[i] >= 1 ? -Inf : log.(1-y_p[i])
-        end
-    end
-    push!(tm.Results["Accuracy"][i],TestAccuracy(y_test,sign.(y_p-0.5)))
-    push!(tm.Results["MeanL"][i],TestMeanHoldOutLikelihood(loglike))
-    push!(tm.Results["MedianL"][i],TestMedianHoldOutLikelihood(loglike))
-    push!(tm.Results["ELBO"][i],1.0)
-    push!(tm.Results["Param"][i],1.0)
-    push!(tm.Results["Coeff"][i],1.0)
-end
-
-function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points)
+function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points)
     LogArrays = Array{Any,1}()
     if typeof(tm.Model[i]) <: OMGP.GPModel
         function LogIt(model::OMGP.GPModel,iter)
             if in(iter,iter_points)
-                a = zeros(8)
+                a = zeros(6)
                 a[1] = time_ns()
-                y_p = model.predictproba(X_test)
-                loglike = zeros(y_p)
-                for i in 1:length(y_p)
-                    if y_test[i] == 1
-                        loglike[i] = y_p[i] <= 0 ? -Inf : log.(y_p[i])
-                    elseif y_test[i] == -1
-                        loglike[i] = y_p[i] >= 1 ? -Inf : log.(1-y_p[i])
-                    end
-                end
-                # loglike[y_test.==1] = log.(y_p[y_test.==1])
-                # loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
+                y_sparse,loglike = model.predict(X_test)
+                loglike = log.(loglike)
                 a[2] = TestAccuracy(y_test,sign.(y_p-0.5))
                 a[3] = TestMeanHoldOutLikelihood(loglike)
                 a[4] = TestMedianHoldOutLikelihood(loglike)
                 a[5] = OMGP.ELBO(model)
-    #            println("Iteration $iter : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) θ is $(model.Kernels[1].param)")
                 a[6] = time_ns()
-                a[7] = OMGP.getvalue(model.kernel.param[1])
-                a[8] = OMGP.getvalue(model.kernel.weight)
                 push!(LogArrays,a)
             end
         end
       tm.Model[i].train(iterations=iterations,callback=LogIt)
-    elseif tm.MethodType == "SVGPC"
+    elseif tm.MethodType == "SVGPMC"
       function pythonlogger(model,session,iter)
             if in(iter,iter_points)
                 a = zeros(8)
@@ -400,32 +272,20 @@ function TrainModelwithTime!(tm::TestingModel,i,X,y,X_test,y_test,iterations,ite
                 loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
                 a[2] = TestAccuracy(y_test,sign.(y_p-0.5))
                 a[5] = session[:run](model[:likelihood_tensor])
-                # println("Iteration $(self[:i]) : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) mean(θ) is $(mean(tm.Model[i][:kern][:rbf][:lengthscales][:value]))")
                 a[6] = time_ns()
-                # a[7] = model[:kern][:kernels][1][:lengthscales][:value][1]
-                # a[8] = model[:kern][:kernels][1][:variance][:value][1]
                 push!(LogArrays,a)
                 # println((a[1]-LogArrays[1][1])*1e-9)
             end
       end
-      run_nat_grads_with_adam(tm.Model[i], iterations; ind_points_fixed=!tm.Param["PointOptimization"], kernel_fixed =!tm.Param["Autotuning"],callback=pythonlogger)
-    #   tm.Model[i][:optimize](maxiter=iterations,callback=loggerobject[:gethyper],method=tensorflow.train[:AdamOptimizer]())
-      # tm.Model[i][:optimize](maxiter=iterations,callback=loggerobject[:getlog],method=tensorflow.train[:AdamOptimizer]())
-    elseif tm.MethodType == "LogReg"
-        InitConvergence(tm,i)
-        ConvergenceTest(tm,i,X_test,y_test)
-        tm.Model[i][:max_iter] = iterations
-        tm.Model[i][:fit](X,y)
-        push!(tm.Results["Time"][i],time_ns())
-        ConvergenceTest(tm,i,X_test,y_test)
-        tm.Results["Time"][i] = (tm.Results["Time"][i][2:3]-tm.Results["Time"][i][1])*1e-9
-    elseif tm.MethodType == "SVM"
-        warn("Not available for libSVM")
+      run_adam_and_callback(tm.Model[i], iterations; ind_points_fixed=!tm.Param["PointOptimization"], kernel_fixed =!tm.Param["Autotuning"],callback=pythonlogger)
     elseif tm.MethodType == "EPGPC"
         m = tm.Param["M"]; bs = tm.Param["BatchSize"]; pointopt=tm.Param["PointOptimization"]; autotu=tm.Param["Autotuning"];
         ind_points = OMGP.KMeansInducingPoints(X,tm.Param["M"],10)
         tm.Model[i] = R"epGPCInternal($X, $y, inducingpoints=$ind_points, n_pseudo_inputs = $m, Xtest = $X_test, Ytest= $y_test, minibatchsize = $bs, maxiter=$iterations,indpointsopt= $pointopt, hyperparamopt=$autotu,callback=save_log)"
         LogArrays = rcopy(tm.Model[i][:log_table]).columns[2:end]
+    elseif tm.MethodType == "TTGPMC"
+    elseif tm.MethodType == "ARMC"
+
     end
     return LogArrays
 end
@@ -563,16 +423,14 @@ function ComputePrediction(tm::TestingModel, i,X, X_test)
   y_predic = []
   if typeof(tm.Model[i]) <: OMGP.GPModel
     y_predic = sign.(tm.Model[i].predict(X_test))
-  elseif tm.MethodType == "SVGPC"
+  elseif tm.MethodType == "SVGPMC"
     y_predic = sign.(tm.Model[i][:predict_y](X_test)[1]*2-1)
-  elseif tm.MethodType == "LogReg"
-    y_predic = sign.(tm.Model[i][:predict](X_test))
-  elseif tm.MethodType == "SVM"
-    y_predic = sign.(tm.Model[i][:predict](X_test))
-  elseif tm.MethodType == "EPGPC"
+  elseif tm.MethodType == "EPGPMC"
     R"y_predic <- predict($X_test,$(tm.Model[i]))"
     @rget y_predic
     y_predic = sign.(y_predic-0.5)
+  elseif tm.MethodType == "TTGPMC"
+  elseif tm.MethodType == "ARMPC"
   end
   return y_predic
 end
@@ -629,7 +487,7 @@ function ROC(y_test,y_predic,npoints)
     nt = length(y_test)
     truepositive = zeros(npoints); falsepositive = zeros(npoints)
     truenegative = zeros(npoints); falsenegative = zeros(npoints)
-    thresh = collect(linspace(0,1,npoints))
+    thresh = collect(range(0,1,npoints))
     for i in 1:npoints
       for j in 1:nt
         truepositive[i] += (y_predic[j]>=thresh[i] && y_test[j]>=0.9) ? 1 : 0;

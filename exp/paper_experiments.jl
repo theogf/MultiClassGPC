@@ -14,30 +14,22 @@ end
 if !in(LOAD_PATH,SRC_PATH); push!(LOAD_PATH,SRC_PATH); end;
 include("functions_paper_experiment.jl")
 
-#Compare XGPC, BSVM, SVGPC and Logistic Regression
+#Compare XGPMC, BSVM, SVGPMC and others
 
 #Methods and scores to test
-doSXGPMC = false#true#!!!!args["noXGPC"] #Sparse XGPC (sparsity)
-doEPGPMC = false#true#!!!args["EPGPC"]
-doSVGPMC = true#!!!args["SVGPC"] #Sparse Variational GPC (Hensmann)
-doRuiz
+doSXGPMC = false#true#!!!!args["noXGPMC"] #Sparse XGPMC (sparsity)
+doEPGPMC = false#true#!!!args["EPGPMC"]
+doSVGPMC = true#!!!args["SVGPMC"] #Sparse Variational GPMC (Hensmann)
+doARMC = false
+doTTGPMC = false
 
-doLogReg = args["logreg"] #Logistic Regression
 doAutotuning = true#!!!args["autotuning"]
 doPointOptimization = args["point-optimization"]
-
-#other methods
-doBXGPC = false #Batch XGPC (no sparsity)
-doLBSVM = false #Linear BSVM
-doBBSVM = false #Batch BSVM
-doSBSVM = false #Sparse BSVM
 
 
 # ExperimentName = "Prediction"
 ExperimentName = args["exp"]
-@enum ExperimentType AccuracyExp=1 ConvergenceExp=2
 ExperimentTypes = Dict("Convergence"=>ConvergenceExp,"Accuracy"=>AccuracyExp)
-Experiment = ExperimentTypes[ExperimentName]
 doTime = true #Return time needed for training
 doAccuracy = true #Return Accuracy
 doBrierScore = true # Return BrierScore
@@ -68,6 +60,7 @@ main_param = DefaultParameters()
 main_param["nFeatures"] = nFeatures
 main_param["nSamples"] = nSamples
 main_param["ϵ"] = 1e-10 #Convergence criterium
+main_param["maxIter"]=MaxIter
 main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "rbf"
 main_param["Θ"] = 1.5 #initial Hyperparameter of the kernel
@@ -76,27 +69,20 @@ main_param["Verbose"] = 1
 main_param["Window"] = 10
 main_param["Autotuning"] = doAutotuning
 main_param["PointOptimization"] = doPointOptimization
-#BSVM and SVGPC Parameters
-BXGPCParam = XGPCParameters(main_param=main_param)
-SXGPCParam = XGPCParameters(Stochastic=true,Sparse=true,ALR=true,main_param=main_param)
-LBSVMParam = BSVMParameters(Stochastic=false,NonLinear=true)
-BBSVMParam = BSVMParameters(Stochastic=false,Sparse=false,ALR=false,main_param=main_param)
-SBSVMParam = BSVMParameters(Stochastic=true,Sparse=true,ALR=true,main_param=main_param)
-LogRegParam = LogRegParameters(main_param=main_param)
-SVGPCParam = SVGPCParameters(Stochastic=true,Sparse=true,main_param=main_param)
-EPGPCParam = EPGPCParameters(main_param=main_param)
+#All Parameters
+BXGPMCParam = XGPMCParameters(main_param=main_param)
+SXGPMCParam = XGPMCParameters(Stochastic=true,Sparse=true,ALR=true,main_param=main_param)
+SVGPMCParam = SVGPMCParameters(Stochastic=true,Sparse=true,main_param=main_param)
+EPGPMCParam = EPGPMCParameters(main_param=main_param)
+
 
 #Set of all models
 TestModels = Dict{String,TestingModel}()
 
-if doBXGPC; TestModels["BXGPC"] = TestingModel("BXGPC",DatasetName,ExperimentName,"BXGPC",BXGPCParam); end;
-if doSXGPC; TestModels["SXGPC"] = TestingModel("SXGPC",DatasetName,ExperimentName,"SXGPC",SXGPCParam); end;
-if doLBSVM; TestModels["LBSVM"] = TestingModel("LBSVM",DatasetName,ExperimentName,"LBSVM",BBSVMParam); end;
-if doBBSVM; TestModels["BBSVM"] = TestingModel("BBSVM",DatasetName,ExperimentName,"BBSVM",BBSVMParam); end;
-if doSBSVM; TestModels["SBSVM"] = TestingModel("SBSVM",DatasetName,ExperimentName,"SBSVM",SBSVMParam); end;
-if doLogReg; TestModels["LogReg"] = TestingModel("LogReg",DatasetName,ExperimentName,"LogReg",LogRegParam); end;
-if doSVGPC;   TestModels["SVGPC"]   = TestingModel("SVGPC",DatasetName,ExperimentName,"SVGPC",SVGPCParam);      end;
-if doEPGPC; TestModels["EPGPC"] = TestingModel("EPGPC",DatasetName,ExperimentName,"EPGPC",EPGPCParam); end;
+if doBXGPMC; TestModels["BXGPMC"] = TestingModel("BXGPMC",DatasetName,ExperimentName,"BXGPMC",BXGPMCParam); end;
+if doSXGPMC; TestModels["SXGPMC"] = TestingModel("SXGPMC",DatasetName,ExperimentName,"SXGPMC",SXGPMCParam); end;
+if doSVGPMC;   TestModels["SVGPMC"]   = TestingModel("SVGPMC",DatasetName,ExperimentName,"SVGPMC",SVGPMCParam);      end;
+if doEPGPMC; TestModels["EPGPMC"] = TestingModel("EPGPMC",DatasetName,ExperimentName,"EPGPMC",EPGPMCParam); end;
 
 writing_order = Array{String,1}();                    if doTime; push!(writing_order,"Time"); end;
 if doAccuracy; push!(writing_order,"Accuracy"); end;  if doBrierScore; push!(writing_order,"Brierscore"); end;
@@ -152,7 +138,7 @@ for (name,testmodel) in TestModels
                 TrainModelwithTime!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)
             else
                 LogArrays= hcat(TrainModelwithTime!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)...)
-                if testmodel.MethodType == "EPGPC"
+                if testmodel.MethodType == "EPGPMC"
                     LogArrays=LogArrays'
                     testmodel.Results["Time"][i] = LogArrays[1,:]
                 else
@@ -175,12 +161,12 @@ for (name,testmodel) in TestModels
             WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
         end
         #Reset the kernel
-        if testmodel.MethodName == "SVGPC"
+        if testmodel.MethodName == "SVGPMC"
             # rbf = testmodel.Model[i][:kern][:kernels][1]
-            # println("SVGPC : params : $(rbf[:lengthscales][:value]) and coeffs : $(rbf[:variance][:value])")
+            # println("SVGPMC : params : $(rbf[:lengthscales][:value]) and coeffs : $(rbf[:variance][:value])")
             testmodel.Param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
-        elseif testmodel.MethodName == "SXGPC"
-            println("SXGPC : params : $(OMGP.getvalue(testmodel.Model[i].kernel.param[1])), and coeffs $(OMGP.getvalue(testmodel.Model[i].kernel.weight))")
+        elseif testmodel.MethodName == "SXGPMC"
+            println("SXGPMC : params : $(OMGP.getvalue(testmodel.Model[i].kernel.param[1])), and coeffs $(OMGP.getvalue(testmodel.Model[i].kernel.weight))")
         end
     end # of the loop over the folds
     if Experiment == AccuracyExp
