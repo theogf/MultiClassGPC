@@ -236,10 +236,11 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
     elseif tm.MethodType == "EPGPC"
         m = tm.Param["M"]; bs = tm.Param["BatchSize"]; pointopt=tm.Param["PointOptimization"]; autotu=tm.Param["Autotuning"];
         ind_points = OMGP.KMeansInducingPoints(X,tm.Param["M"],10)
-        tm.Model[i] = R"epGPCInternal($X, $y, inducingpoints=$ind_points, n_pseudo_inputs = $m, Xtest = $X_test, Ytest= $y_test, minibatchsize = $bs, maxiter=$iterations,indpointsopt= $pointopt, hyperparamopt=$autotu,callback=save_log)"
+        tm.Model[i] = R"epGPCInternal($X, $y, inducingpoints=$ind_points, m = $m, X_test = $X_test, Y_test= $y_test, n_minibatch = $bs, max_iters=$iterations,indpointsopt= $pointopt, hyperparamopt=$autotu,callback=save_log)"
         LogArrays = rcopy(tm.Model[i][:log_table]).columns[2:end]
     elseif tm.MethodType == "TTGPMC"
     elseif tm.MethodType == "ARMC"
+
     end
     return LogArrays
 end

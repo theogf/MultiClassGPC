@@ -65,7 +65,7 @@ indpointsopt=true
  l = 1.0
  hyperparamopt = false
  target_result = "test/results/performances.txt"
- t_EP = @elapsed EPmodel = R"epMGPCInternal($X, $y, m = $m, n_minibatch = $batchsize, X_test=$X_test, Y_test=$y_test, max_iters = $maxiter)"
+ t_EP = @elapsed EPmodel = R"epMGPCInternal($X, $y, m = $m, n_minibatch = $batchsize, X_test=$X_test, Y_test=$y_test, max_iters = $maxiter,autotuning =TRUE)"
  R"y_EP <- predictMGPC($EPmodel,$X_test)"
 y_EP = @rget y_EP
 y_pred = map(x->parse(Int64,x),y_EP[:labels])

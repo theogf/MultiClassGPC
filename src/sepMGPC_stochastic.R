@@ -544,12 +544,13 @@ computeGradsLikelihood <- function(a, q, q_cavity) {
 #
 # returns the approximate distribution for the posterior as a list with several components.
 #
-epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = rep(0, length(levels(Y))),
+epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = rep(0, length(levels(Y))),autotuning = TRUE, indpoints = FALSE,
                            log_sigma0 = rep(0, length(levels(Y))), log_l = matrix(0, length(levels(Y)), ncol(X)),
                            max_iters = 250, start = NULL, X_test = NULL, Y_test = NULL, optim = 'adam', CONT='test',
                            print_interval = ceiling(nrow(X)/n_minibatch)) {
 
     t0 <<- proc.time()
+    value_log <- data.frame(Iter=numeric(),Time=numeric(),Accuracy=numeric(),MeanLL=numeric(),ELBO=numeric())
     if (!is.factor(Y)){Y <- factor(Y)}
 
     # We initialize the hyper-parameters
@@ -570,7 +571,6 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
     for (i in 1:nK) {
         if (is.null(Xbar_ini)) {
             samples <- sample(1:n,  m)
-            cat(n," ",d," ",i," ",nK)
             Xbar[[ i ]] <- X[ samples, ]
         } else {
             Xbar[[ i ]] <- Xbar_ini[[ i ]]
@@ -596,29 +596,29 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
     }
 
     # Optimization parameters
+    if (autotuning){
+        if (optim == "adadelta") {
+            xbarTemp <- list()
+            for (j in 1:nK)
+               xbarTemp[[ j ]] <- matrix(0, m, d)
+            gms <- list(sigma = rep(0, nK), sigma0 = rep(0, nK), l = matrix(0, nK, d), xbar = xbarTemp)
+            sms <- list(sigma = rep(0, nK), sigma0 = rep(0, nK), l = matrix(0, nK, d), xbar = xbarTemp)
+            step <- list(sigma = rep(0, nK), sigma0 = rep(0, nK), l = matrix(0, nK, d), xbar = xbarTemp)
 
-    if (optim == "adadelta") {
-        xbarTemp <- list()
-        for (j in 1:nK)
-           xbarTemp[[ j ]] <- matrix(0, m, d)
-        gms <- list(sigma = rep(0, nK), sigma0 = rep(0, nK), l = matrix(0, nK, d), xbar = xbarTemp)
-        sms <- list(sigma = rep(0, nK), sigma0 = rep(0, nK), l = matrix(0, nK, d), xbar = xbarTemp)
-        step <- list(sigma = rep(0, nK), sigma0 = rep(0, nK), l = matrix(0, nK, d), xbar = xbarTemp)
+            optim_params <<- list(step_rate = 1, decay = 0.9, eps = 1e-5, gms = gms, sms = sms, step = step)
+        }
+        else {
+            optim <- "adam"
+            xbarTemp <- list()
+            for (j in 1:nK)
+                xbarTemp[[ j ]] <- matrix(0, m, d)
+            mt <- list(sigma = rep(0, nK), sigma0 = rep(0, nK), l = matrix(0, nK, d), xbar = xbarTemp)
+            vt <- list(sigma = rep(0, nK), sigma0 = rep(0, nK), l = matrix(0, nK, d), xbar = xbarTemp)
+            step <- 0
 
-        optim_params <<- list(step_rate = 1, decay = 0.9, eps = 1e-5, gms = gms, sms = sms, step = step)
+            optim_params <<- list(alpha = 1e-3, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, mt = mt, vt = vt, step = step)
+        }
     }
-    else {
-        optim <- "adam"
-        xbarTemp <- list()
-        for (j in 1:nK)
-            xbarTemp[[ j ]] <- matrix(0, m, d)
-        mt <- list(sigma = rep(0, nK), sigma0 = rep(0, nK), l = matrix(0, nK, d), xbar = xbarTemp)
-        vt <- list(sigma = rep(0, nK), sigma0 = rep(0, nK), l = matrix(0, nK, d), xbar = xbarTemp)
-        step <- 0
-
-        optim_params <<- list(alpha = 1e-3, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, mt = mt, vt = vt, step = step)
-    }
-
     damping <- 1
     sigma_old <- sigma
     sigma0_old <- sigma0
@@ -637,8 +637,9 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
     factors_per_class = (nrow(X) - table(Y)) + table(Y) * (nK - 1)
 
     i <- 1
+    cont <- 1
     count_minibatches <- 0
-    while (i < max_iters) {
+    while (cont < max_iters) {
 
         avg_evidence <- 0
         perm <- sample(1 : nrow(X))
@@ -665,8 +666,8 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
             # Constructs the cavity distribution
 
             q_cavity <- cavityDistribution_minibatch(a, q, factors_per_class)
-
-            avg_evidence <- avg_evidence + computeEvidence_minibatch(a, q, q_cavity, nrow(X), nrow(Xbatch))
+            mini_elbo <- computeEvidence_minibatch(a, q, q_cavity, nrow(X), nrow(Xbatch))
+            avg_evidence <- avg_evidence + mini_elbo
 
             # Refines factors
 
@@ -691,24 +692,27 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
 
             # Update of the hyper-parameters
 
-            q_cavity <- cavityDistribution_minibatch(a, q, factors_per_class)
+            if (autotuning){
+                q_cavity <- cavityDistribution_minibatch(a, q, factors_per_class)
+                a$gMGPCinfo <- optimize(a, q, q_cavity, nrow(X), nrow(Xbatch), optim)
 
-            a$gMGPCinfo <- optimize(a, q, q_cavity, nrow(X), nrow(Xbatch), optim)
-
-            KmmInv <- list()
-            for (j in 1:a$nK) {
-                KmmInv[[ j ]] <- a$gMGPCinfo[[ j ]]$KmmInv
-                sigma[ j ] <- a$gMGPCinfo[[ j ]]$sigma
-                sigma0[ j ] <- a$gMGPCinfo[[ j ]]$sigma0
-                l[ j, ] <- a$gMGPCinfo[[ j ]]$l
-                Xbar[[ j ]] <- a$gMGPCinfo[[ j ]]$Xbar
+                KmmInv <- list()
+                for (j in 1:a$nK) {
+                    KmmInv[[ j ]] <- a$gMGPCinfo[[ j ]]$KmmInv
+                    sigma[ j ] <- a$gMGPCinfo[[ j ]]$sigma
+                    sigma0[ j ] <- a$gMGPCinfo[[ j ]]$sigma0
+                    l[ j, ] <- a$gMGPCinfo[[ j ]]$l
+                    if (indpoints) {
+                        Xbar[[ j ]] <- a$gMGPCinfo[[ j ]]$Xbar
+                    }
+                }
+                q <- reconstructPosterior(a)
             }
 
             # Update posterior after change of the hyper-parameters
 
-            q <- reconstructPosterior(a)
 
-            if ((REPORT == TRUE) && ((count_minibatches %% print_interval) == 0)) {
+            if (cont %% max(1,10^(floor(log10(cont/10)))) == 0) {
 
                 # Reconstruct structure
 
@@ -722,14 +726,15 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
 
                 t_before <- proc.time()
                 performance <- evaluate_test_performance(ret = ret, X_test = X_test, Y_test = Y_test, q = q)
+                elbo0 <- mini_elbo*nBatches
                 t_after <- proc.time()
 
                 t0 <- t0 + (t_after - t_before)
-
-                write.table(t(c(performance$err, performance$neg_ll, proc.time() - t0)),
-                            file = paste("./results/time_outter_", CONT, ".txt", sep = ""), row.names = F, col.names = F, append = TRUE)
+                value_log[nrow(value_log)+1,] <- list(cont,proc.time()[1]-t0[1],1-(performance$err),-(performance$neg_ll),elbo0)
+                # write.table(t(c(performance$err, performance$neg_ll, proc.time() - t0)),
+                #             file = paste("./results/time_outter_", CONT, ".txt", sep = ""), row.names = F, col.names = F, append = TRUE)
             }
-
+            cont <- cont + 1
             count_minibatches <- count_minibatches + 1
         }
 
@@ -753,7 +758,7 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
     }
     n <- a$n <- nrow(X)
 
-    list(f1Hat = a$f1Hat, gMGPCinfo = a$gMGPCinfo, n = n, nK = nK, Y = Y, a = a, levelsY = levelsY)
+    list(log_table=value_log[,],f1Hat = a$f1Hat, gMGPCinfo = a$gMGPCinfo, n = n, nK = nK, Y = Y, a = a, levelsY = levelsY)
 }
 
 cavityDistribution_minibatch <- function(a, q, factors_per_class){
