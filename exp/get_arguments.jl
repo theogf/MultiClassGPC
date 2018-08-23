@@ -1,14 +1,10 @@
 using ArgParse
-if length(ARGS) ==0
-    ARGS = ["German"]
-end
 
 function parse_commandline()
     s = ArgParseSettings(exc_handler=ArgParse.debug_handler)
     @add_arg_table s begin
         "dataset"
             help = "Dataset to train on"
-            required = true
         "--exp"
             help = "Type of experiment to run, options are 'Convergence', 'IndPoints', 'Accuracy'"
             default = "Convergence"
@@ -31,17 +27,20 @@ function parse_commandline()
             help = "Maximum number of iterations"
             arg_type = Int
             default = 100
-        "--noXGPC"
-            help = "Do not run XGPC"
+        "--XGP"
+            help = "Run XGPC"
             action = :store_true
-        "--SVGPC"
+        "--SVGP"
             help = "Run SVGPC"
             action = :store_true
-        "--EPGPC"
+        "--EPGP"
             help = "Run EPGPC"
             action = :store_true
-        "--logreg"
-            help = "Run Logistic Regression"
+        "--TTGP"
+            help = "Run Tensor Train decomposition"
+            action = :store_true
+        "--AR"
+            help = "Run Augment and Reduce"
             action = :store_true
         "--last-state"
             help = "Save the last state of the model"

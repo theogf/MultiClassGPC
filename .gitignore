@@ -1,0 +1,9 @@
+*.data
+*.tex
+*.csv
+*.arff
+data/*
+*.txt
+*.dvi
+*.cluster
+*.old

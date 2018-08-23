@@ -17,15 +17,14 @@ include("functions_paper_experiment.jl")
 #Compare XGPMC, BSVM, SVGPMC and others
 
 #Methods and scores to test
-doSXGPMC = false#true#!!!!args["noXGPMC"] #Sparse XGPMC (sparsity)
-doEPGPMC = false#true#!!!args["EPGPMC"]
-doSVGPMC = true#!!!args["SVGPMC"] #Sparse Variational GPMC (Hensmann)
-doARMC = false
-doTTGPMC = false
+doSXGPMC = args["XGP"] #Sparse XGPMC (sparsity)
+doEPGPMC = args["EPGP"]
+doSVGPMC = args["SVGP"] #Sparse Variational GPMC (Hensmann)
+doARMC = args["AR"]
+doTTGPMC = args["TTGP"]
 
 doAutotuning = true#!!!args["autotuning"]
 doPointOptimization = args["point-optimization"]
-
 
 # ExperimentName = "Prediction"
 ExperimentName = args["exp"]

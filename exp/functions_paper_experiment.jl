@@ -2,31 +2,27 @@
 #= ---------------- #
 Set of functions for efficient testing.
 # ---------------- =#
+using DelimitedFiles
 
 
 
-
-# module TestFunctions
-
-#using ScikitLearn;
-#if !isdefined(:SGDClassifier); @sk_import linear_model: SGDClassifier; end;
-using PyCall
-using MATLAB
-@pyimport gpflow
-@pyimport tensorflow as tf
-mat"addpath ~/Competitors/augment-reduce/src"
-mat"addpath ~/Competitors/augment-reduce/src/aux"
-mat"addpath ~/Competitors/augment-reduce/src/infer"
-@pyimport TTGP.projectors as ttgpproj
-@pyimport TTGP.covariance as ttgpcovariance
-@pyimport TTGP.gpc_runner as ttgpcrun
-@pyimport sklearn.datasets as sk
-@pyimport sklearn.model_selection as sp
-# using RCall
-# R"source('EP_stochastic.R')"
-using Distributions
-# using PyPlot
-import OMGP
+module TestFunctions
+  using PyCall
+  using Distributions
+  using MATLAB
+  import OMGP
+  @pyimport gpflow
+  @pyimport tensorflow as tf
+  mat"addpath ~/Competitors/augment-reduce/src"
+  mat"addpath ~/Competitors/augment-reduce/src/aux"
+  mat"addpath ~/Competitors/augment-reduce/src/infer"
+  @pyimport TTGP.projectors as ttgpproj
+  @pyimport TTGP.covariance as ttgpcovariance
+  @pyimport TTGP.gpc_runner as ttgpcrun
+  @pyimport sklearn.datasets as sk
+  @pyimport sklearn.model_selection as sp
+  using RCall
+  R"source('EP_stochastic.R')"
 
 
 function get_Dataset(datasetname::String)
@@ -34,10 +30,10 @@ function get_Dataset(datasetname::String)
     X = data[:,1:end-1]; y = floor.(Int64,data[:,end]);
     return (X,y,datasetname)
 end
-# export TestingModel
-# export DefaultParameters, XGPCParameters, BSVMParameters, SVGPCParameters, LogRegParameters, OMGPParameters, SVMParameters
-# export CreateModel, TrainModel, TrainModelwithTime, RunTests, ProcessResults, PrintResults, WriteResults
-# export ComputePrediction, ComputePredictionAccuracy
+export TestingModel
+export DefaultParameters, XGPMCParameters, SVGPMCParameters, ARMCParameters, TTGPMCParameters
+export CreateModel, TrainModel, RunTests, ProcessResults, PrintResults, WriteResults
+export ComputePrediction, ComputePredictionAccuracy
 
 #Datatype for containing the model, its results and its parameters
 type TestingModel
@@ -73,6 +69,7 @@ end
 #Create a default parameters dictionary for XGPC
 function XGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
+  param["nClasses"] = main_param["nClasses"]
   param["Stochastic"] = Stochastic #Is the method stochastic
   param["Sparse"] = Sparse #Is the method using inducing points
   param["ALR"] = ALR #Is the method using adpative learning rate (in case of the stochastic case)
@@ -94,6 +91,7 @@ end
 #Create a default parameters dictionary for SVGPMC (similar to XGPMC)
 function SVGPMCParameters(;Stochastic=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
+  param["nClasses"] = main_param["nClasses"]
   param["Sparse"] = true
   if Sparse
     param["Stochastic"] = Stochastic
@@ -103,9 +101,7 @@ function SVGPMCParameters(;Stochastic=false,main_param=DefaultParameters())
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
   param["ϵ"] = main_param["ϵ"]
-  param["Kernel"] = gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false)
-  # param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
-  # param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"]*ones(main_param["nFeatures"])),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+  param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
   param["BatchSize"] = main_param["BatchSize"]
   param["M"] = main_param["M"]
   param["SmoothingWindow"] = main_param["Window"]
@@ -116,6 +112,7 @@ end
 #Create a default parameters dictionary for EPGPC (similar to XGPMC)
 function EPGPMCParameters(;main_param=DefaultParameters())
   param = Dict{String,Any}()
+  param["nClasses"] = main_param["nClasses"]
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
   param["ϵ"] = main_param["ϵ"]
@@ -129,18 +126,10 @@ end
 #Create a default parameters dictionary for TTGPC (similar to XGPMC)
 function TTGPMCParameters(;Stochastic=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
-  param["Sparse"] = Sparse
-  if Sparse
-    param["Stochastic"] = Stochastic
-  else
-    param["Stochastic"] = false
-  end
+  param["nClasses"] = main_param["nClasses"]
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
   param["ϵ"] = main_param["ϵ"]
-  param["Kernel"] = gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false)
-  # param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
-  # param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"]*ones(main_param["nFeatures"])),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
   param["BatchSize"] = main_param["BatchSize"]
   param["M"] = main_param["M"]
   param["SmoothingWindow"] = main_param["Window"]
@@ -152,6 +141,7 @@ end
 #Create a default parameters dictionary for ARMC (similar to XGPMC)
 function ARMCParameters(;Stochastic=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
+  param["nClasses"] = main_param["nClasses"]
   param["maxIter"]=main_param["maxIter"]
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
@@ -170,72 +160,40 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
             VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(y) : [0.0])
     elseif tm.MethodType == "SXGPMC"
         tm.Model[i] = OMGP.SparseMultiClass(X,y;Stochastic=tm.Param["Stochastic"],BatchSize=tm.Param["BatchSize"],m=tm.Param["M"],
-            kernel=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
+            kernel=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],
+            AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
             SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0])
     elseif tm.MethodType == "SVGPMC"
         if tm.Param["Stochastic"]
             #Stochastic Sparse SVGPC model
-            tm.Model[i] = gpflow.models[:SVGP](X, reshape((y+1)./2,(length(y),1)),kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:Bernoulli](), Z=OMGP.KMeansInducingPoints(X,tm.Param["M"],10), minibatch_size=tm.Param["BatchSize"])
+            tm.Model[i] = gpflow.models[:SVGP](X, y,kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],
+             Z=OMGP.KMeansInducingPoints(X,tm.Param["M"],10), minibatch_size=tm.Param["BatchSize"])
         else
             #Sparse SVGPC model
-            tm.Model[i] = gpflow.models[:SVGP](X, reshape((y+1)./2,(size(y,1),1)),kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:Bernoulli](), Z=OMGP.KMeansInducingPoints(X,tm.Param["M"],10))
+            tm.Model[i] = gpflow.models[:SVGP](X, reshape((y+1)./2,(size(y,1),1)),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],
+             Z=OMGP.KMeansInducingPoints(X,tm.Param["M"],10))
         end
     elseif tm.MethodType == "TTGPMC"
-        tm.Results["Time"][i]=[time_ns()]
-        tm.Model[i] = SGDClassifier(loss="log", penalty="l2", alpha=tm.Param["γ"],
-         fit_intercept=true, tol=tm.Param["ϵ"], shuffle=true,
-          n_jobs=1, learning_rate="optimal" ,warm_start=false)
-        push!(tm.Results["Time"][i],time_ns())
+        tm.Model[i] = 0
     elseif tm.MethodType == "EPGPC"
         tm.Model[i] = 0
     elseif tm.MethodType == "ARMC"
         tm.Model[i] = Dict{String,Any}(); tm.Model[i]["method_name"] = "softmax_a&r";
         tm.Model[i]["maxIter"]=tm.Param["maxIter"]; tm.Model[i]["B"] = tm.Param["BatchSize"]
-        tm.Model[i]["lag_mexFile"]=1; tm.Model[i]["s2prior"] = Inf; param["step_eta"] = 0.02;
-        tm.Model[i]["flag_imp_sampling"] = 0; param["computePredTrain"] = 0;
+        tm.Model[i]["lag_mexFile"]=1; tm.Model[i]["s2prior"] = Inf; tm.Model[i]["step_eta"] = 0.02;
+        tm.Model[i]["flag_imp_sampling"] = 0; tm.Model[i]["computePredTrain"] = 0;
     end
 end
 
-function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel_fixed =false, callback=nothing)
+function run_with_adam(model,iterations; ind_points_fixed=true, kernel_fixed =false, callback=nothing)
     # we'll make use of this later when we use a XiTransform
-    gamma_start = 1e-5
-    gamma_max = 1e-1
-    gamma_step = 1e-2
-    gamma = tf.Variable(gamma_start,dtype=tf.float64)
-    gamma_incremented = tf.where(tf.less(gamma,gamma_max),gamma+gamma_step,gamma_max)
-    op_increment_gamma = tf.assign(gamma,gamma_incremented)
-    gamma_fallback = 1e-1
-    op_gamma_fallback = tf.assign(gamma,gamma*gamma_fallback)
     sess = model[:enquire_session]()
-    sess[:run](tf.variables_initializer([gamma]))
-    var_list = [(model[:q_mu], model[:q_sqrt])]
-    model[:q_mu][:set_trainable](false)
-    model[:q_sqrt][:set_trainable](false)
-
     ind_points_fixed ? model[:feature][:set_trainable](false) : nothing
     kernel_fixed ? model[:kern][:set_trainable](false) : nothing
-    op_natgrad = gpflow.training[:NatGradOptimizer](gamma=gamma)[:make_optimize_tensor](model, var_list=var_list)
-    adam=0
-
-    if !(ind_points_fixed && kernel_fixed)
-        op_adam = gpflow.train[:AdamOptimizer]()[:make_optimize_tensor](model)
-    end
-
+    op_adam = gpflow.train[:AdamOptimizer]()[:make_optimize_tensor](model)
     for iter in 1:iterations
-        try
-            sess[:run](op_natgrad)
-            sess[:run](op_increment_gamma)
-        catch
-            g = sess[:run](gamma)
-            # println("Gamma $g on iteration $iter is too big: Falling back to $(g*gamma_fallback)")
-            sess[:run](op_gamma_fallback)
-        end
-        if adam!=0
-            sess[:run](op_adam)
-        end
-        if callback != nothing
-          callback(model,sess,iter)
-        end
+        sess[:run](op_adam)
+        callback(model,sess,iter)
         if iter % 100 == 0
             print("$iter gamma=$(sess[:run](gamma)) ELBO=$(sess[:run](model[:likelihood_tensor]))")
         end
@@ -252,10 +210,11 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 a[1] = time_ns()
                 y_sparse,loglike = model.predict(X_test)
                 loglike = log.(loglike)
-                a[2] = TestAccuracy(y_test,sign.(y_p-0.5))
+                a[2] = TestAccuracy(y_test,y_p)
                 a[3] = TestMeanHoldOutLikelihood(loglike)
                 a[4] = TestMedianHoldOutLikelihood(loglike)
                 a[5] = OMGP.ELBO(model)
+                println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[4])")
                 a[6] = time_ns()
                 push!(LogArrays,a)
             end
@@ -267,14 +226,10 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 a = zeros(8)
                 a[1] = time_ns()
                 y_p = model[:predict_y](X_test)[1]
-                loglike = zeros(y_p)
-                loglike[y_test.==1] = log.(y_p[y_test.==1])
-                loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
-                a[2] = TestAccuracy(y_test,sign.(y_p-0.5))
+                a[2] = TestAccuracy(y_test,y_p)
                 a[5] = session[:run](model[:likelihood_tensor])
                 a[6] = time_ns()
                 push!(LogArrays,a)
-                # println((a[1]-LogArrays[1][1])*1e-9)
             end
       end
       run_adam_and_callback(tm.Model[i], iterations; ind_points_fixed=!tm.Param["PointOptimization"], kernel_fixed =!tm.Param["Autotuning"],callback=pythonlogger)
@@ -285,7 +240,6 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
         LogArrays = rcopy(tm.Model[i][:log_table]).columns[2:end]
     elseif tm.MethodType == "TTGPMC"
     elseif tm.MethodType == "ARMC"
-
     end
     return LogArrays
 end
@@ -629,4 +583,4 @@ function PlotResultsConvergence(TestModels)
 end
 
 
-# end #end of module
+end #end of module
