@@ -180,7 +180,7 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
     elseif tm.MethodType == "ARMC"
         tm.Model[i] = Dict{String,Any}(); tm.Model[i]["method_name"] = "softmax_a&r";
         tm.Model[i]["maxIter"]=tm.Param["maxIter"]; tm.Model[i]["B"] = tm.Param["BatchSize"]
-        tm.Model[i]["lag_mexFile"]=1; tm.Model[i]["s2prior"] = Inf; tm.Model[i]["step_eta"] = 0.02;
+        tm.Model[i]["flag_mexFile"]=1; tm.Model[i]["s2prior"] = Inf; tm.Model[i]["step_eta"] = 0.02;
         tm.Model[i]["flag_imp_sampling"] = 0; tm.Model[i]["computePredTrain"] = 0;
     end
 end
@@ -239,8 +239,29 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
         tm.Model[i] = R"epGPCInternal($X, $y, inducingpoints=$ind_points, m = $m, X_test = $X_test, Y_test= $y_test, n_minibatch = $bs, max_iters=$iterations,indpointsopt= $pointopt, hyperparamopt=$autotu,callback=save_log)"
         LogArrays = rcopy(tm.Model[i][:log_table]).columns[2:end]
     elseif tm.MethodType == "TTGPMC"
-    elseif tm.MethodType == "ARMC"
+      stable = false
+      while !stable
+        try
+          @pywith tf.Graph()[:as_default]() begin
+            proj = ttgpproj.Identity(D=tm.Param["nFeatures"])
+            kernel = ttgpcovariance.SE_multidim(tm.Param["nClasses"],0.9,tm.Param["theta"],tm.Param["γ"],proj)
 
+            runner = ttgpcrun.GPCRunner(tm.Param["N_grid"],tm.Param["mu_TT"],kernel,X=X,y=(y.+1)./2,X_test=X_test,y_test=(y_test.+1)./2,
+                                       lr=tm.Param["lr"],batch_size=tm.Param["BatchSize"],batch_test=false,n_epoch=iterations)
+            all_pred,LogArrays = runner[:run_experiment]()
+          end
+          stable = true
+        catch e
+          # println(e)
+          println("Number of inducing points is not working, adding 1")
+          tm.Param["N_grid"] += 1
+        end
+    elseif tm.MethodType == "ARMC"
+        t0 = time_ns()
+        mat"data.X = sparse($X)";mat"data.Y = $(Float64.(y))";
+        mat"data.test.X = sparse($X_test)"; mat"data.test.Y = $(Float64.(y_test))"
+        mat"metrics = run_classification(data, $param_j)"
+        LogArrays = @mget metrics
     end
     return LogArrays
 end

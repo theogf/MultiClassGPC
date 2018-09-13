@@ -24,7 +24,7 @@ For multiclass
 		git clone https://github.com/izmailovpavel/TTGP
 		in setup.py
 			replace packages["."] by packages["TTGP"]
-		To fix the error I have modified interpolate_on_batch() from "/..../TTGP/grid.py". Namely, I've specified the batch size of returning value W. Writing
+		To fix the error I have modified interpolate_on_batch() from "/..../TTGP/grid.py". Namely, I have specified the batch size of returning value W. Writing
 			W = TensorTrainBatch(w_cores, batch_size = x.shape.as_list()[0])
 			instead of
 			W =TensorTrainBatch(w_cores)

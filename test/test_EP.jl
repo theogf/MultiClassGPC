@@ -20,10 +20,10 @@ println("$(now()): Starting testing multiclass")
 function latent(X)
     return sqrt.(X[:,1].^2+X[:,2].^2)
 end
-X = (rand(N_samples,N_dim)*(maxx-minx))+minx
+X = (rand(N_samples,N_dim)*(maxx-minx)).+minx
 trunc_d = Truncated(Normal(0,3),minx,maxx)
 X = rand(trunc_d,N_samples,N_dim)
-x_test = linspace(minx,maxx,N_test)
+x_test = range(minx,stop=maxx,length=N_test)
 X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
 # X_test = rand(trunc_d,N_test^dim,dim)
 y = min.(max.(1,floor.(Int64,latent(X)+rand(Normal(0,noise),size(X,1)))),N_class)
@@ -60,7 +60,7 @@ R"source('src/sepMGPC_stochastic.R')"
 m=20
 # ind_points = KMeansInducingPoints(X,m,10)
 batchsize=40
-maxiter=50
+maxiter=1000
 indpointsopt=true
  l = 1.0
  hyperparamopt = false
