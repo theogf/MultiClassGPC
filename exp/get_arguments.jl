@@ -5,10 +5,6 @@ function parse_commandline()
     @add_arg_table s begin
         "dataset"
             help = "Dataset to train on"
-        "--exp"
-            help = "Type of experiment to run, options are 'Convergence', 'IndPoints', 'Accuracy'"
-            default = "Convergence"
-            arg_type = String
         "-M", "--indpoints"
             help = "Number of inducing points"
             arg_type = Int

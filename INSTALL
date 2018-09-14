@@ -12,13 +12,15 @@ For multiclass
 		sudo apt install csh
 		install matlab
 		install libgsl-dev
+		install mex
 		run instruction from main_run.m:
 			gsl-config --cflags --libs   (this gives <TERMINAL_OUTPUT>)
-			mex CFLAGS="\$CFLAGS" -largeArrayDims src/infer/compute_psi.cpp -outdir src/infer
-			mex CFLAGS="\$CFLAGS" -largeArrayDims src/infer/increase_follow_gradients.cpp -outdir src/infer
-			mex CFLAGS="\$CFLAGS" -largeArrayDims src/aux/keep_first_label_c.cpp -outdir src/aux
-			mex CFLAGS="\$CFLAGS" <TERMINAL_OUTPUT> -largeArrayDims src/infer/compute_predictions_c.cpp -outdir src/infer
-			mex CFLAGS="\$CFLAGS" <TERMINAL_OUTPUT> src/aux/multirandperm.cpp -outdir src/aux
+			dans Matlab:
+				mex CFLAGS="\$CFLAGS" -largeArrayDims src/infer/compute_psi.cpp -outdir src/infer
+				mex CFLAGS="\$CFLAGS" -largeArrayDims src/infer/increase_follow_gradients.cpp -outdir src/infer
+				mex CFLAGS="\$CFLAGS" -largeArrayDims src/aux/keep_first_label_c.cpp -outdir src/aux
+				mex CFLAGS="\$CFLAGS" <TERMINAL_OUTPUT> -largeArrayDims src/infer/compute_predictions_c.cpp -outdir src/infer
+				mex CFLAGS="\$CFLAGS" <TERMINAL_OUTPUT> src/aux/multirandperm.cpp -outdir src/aux
 		Pkg.add("MATLAB")
 	TTGP
 		git clone https://github.com/izmailovpavel/TTGP

@@ -7,3 +7,4 @@ data/*
 *.dvi
 *.cluster
 *.old
+dummy.jl

@@ -3,46 +3,98 @@ using PyCall
 using Plots
 @pyimport gpflow
 @pyimport tensorflow as tf
+using Dates
+using Distributions
 using OMGP
-
-N_data = 100000
-N_test = 40
-N_indpoints = 20
+@pyimport sklearn.datasets as sk
+@pyimport sklearn.model_selection as sp
+N_samples = 1000
 N_dim = 2
-noise = 0.2
+N_class = 3
+N_test = 50
 minx=-5.0
 maxx=5.0
-function latent(x)
-    return x[:,1].*sin.(0.5*x[:,2])
-end
+noise = 1.0
+truthknown = false
+doMCCompare = false
+dolikelihood = false
+println("$(now()): Starting testing multiclass")
 
-X = rand(N_data,N_dim)*(maxx-minx)+minx
-x_test = linspace(minx,maxx,N_test)
+function latent(X)
+    return sqrt.(X[:,1].^2+X[:,2].^2)
+end
+X = (rand(N_samples,N_dim)*(maxx-minx)).+minx
+trunc_d = Truncated(Normal(0,3),minx,maxx)
+X = rand(trunc_d,N_samples,N_dim)
+x_test = range(minx,stop=maxx,length=N_test)
 X_test = hcat([j for i in x_test, j in x_test][:],[i for i in x_test, j in x_test][:])
-y = sign.(latent(X)+rand(Normal(0,noise),size(X,1)))
-y_test = sign.(latent(X_test)+rand(Normal(0,noise),size(X_test,1)))
-(nSamples,nFeatures) = (N_data,N_dim)
+# X_test = rand(trunc_d,N_test^dim,dim)
+y = min.(max.(1,floor.(Int64,latent(X)+rand(Normal(0,noise),size(X,1)))),N_class).-1
+y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class).-1
+# y = y.-1; y_tes
+# X,y = sk.make_classification(n_samples=N_samples,n_features=N_dim,n_classes=N_class,n_clusters_per_class=1,n_informative=N_dim,n_redundant=0)
+# X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
+#Test on the Iris dataet
+# train = readdlm("data/iris-X")
+# X = train[1:100,:]; X_test=train[101:end,:]
+# test = readdlm("data/iris-y")
+# y = test[1:100,:]; y_test=test[101:end,:]
+# truthknown = false
+#
+# data = readdlm("data/Glass")
+# # Dataset has been already randomized
+# X = data[1:150,1:(end-1)]; y=data[1:150,end]
+# X_test = data[151:end,1:(end-1)]; y_test=data[151:end,end]
+#### Test on the mnist dataset
+# X = readdlm("data/mnist_train")
+# y=  X[:,1]; X= X[:,2:end]
+# X_test = readdlm("data/mnist_test")
+# y_test= X_test[:,1]; X_test=X_test[:,2:end]
+# println("$(now()): MNIST data loaded")
+#
+# ### Test on the artificial character dataset
+# X = readdlm("data/artificial-characters-train")
+# y=  X[:,1]; X= X[:,2:end]
+# X_test = readdlm("data/artificial-characters-test")
+# y_test= X_test[:,1]; X_test=X_test[:,2:end]
+# println("$(now()): Artificial Characters data loaded")
 m=20
 batchsize=40
 iterations=10000
 Z = KMeansInducingPoints(X,m,10)
 l=1.0
 kernel = gpflow.kernels[:RBF](N_dim,lengthscales=l,ARD=false)+gpflow.kernels[:White](N_dim,variance=noise)
-model = gpflow.models[:SVGP](X, reshape((y+1)./2,(length(y),1)),num_latent=1,kern=kernel, likelihood=gpflow.likelihoods[:Bernoulli](), Z=Z, minibatch_size=batchsize)
+model = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),num_latent=N_class,kern=kernel, likelihood=gpflow.likelihoods[:MultiClass](N_class), Z=Z)
 LogArrays = Array{Any,1}()
 iter_points = vcat(1:99,100:10:999,1000:100:9999)
 function TestAccuracy(y_test, y_predic)
-  return 1-sum(1-y_test.*y_predic)/(2*length(y_test))
+    score = 0
+    for i in 1:length(y_test)
+        if (argmax(y_predic[i,:])-1) == y_test[i]
+            score += 1
+        end
+    end
+    return score/length(y_test)
+end
+function LogLikelihood(y_test,y_predic)
+    return [log(y_predic[i,y_t+1]) for (i,y_t) in enumerate(y_test)]
 end
 function pythonlogger(model,session,iter)
       if in(iter,iter_points)
           a = zeros(8)
           a[1] = time_ns()
           y_p = model[:predict_y](X_test)[1]
-          loglike = zeros(y_p)
-          loglike[y_test.==1] = log.(y_p[y_test.==1])
-          loglike[y_test.==-1] = log.(1-y_p[y_test.==-1])
-          a[2] = TestAccuracy(y_test,sign.(y_p-0.5))
+          best = [argmax(y_p[i,:]) for i in 1:size(y_test,1)]
+          score = 0
+          for i in 1:size(y_test,1)
+              if best[i]==y_test[i]
+                  score += 1
+              end
+          end
+          loglike = LogLikelihood(y_test,y_p)
+          a[2] = TestAccuracy(y_test,y_p)
+          a[3] = mean(loglike)
+          a[4] = median(loglike)
           a[5] = session[:run](model[:likelihood_tensor])
           # println("Iteration $(self[:i]) : Acc is $(a[2]), MedianL is $(a[4]), ELBO is $(a[5]) mean(θ) is $(mean(tm.Model[i][:kern][:rbf][:lengthscales][:value]))")
           a[6] = time_ns()
