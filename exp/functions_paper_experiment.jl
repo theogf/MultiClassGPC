@@ -8,7 +8,7 @@ using DelimitedFiles
 
 # module TestFunctions
   using PyCall
-  using Distributions
+  using Distances, LinearAlgebra, Distributions
   # using MATLAB
   import OMGP
   @pyimport gpflow
@@ -22,7 +22,14 @@ using DelimitedFiles
   @pyimport sklearn.datasets as sk
   @pyimport sklearn.model_selection as sp
   using RCall
-  R"source('../src/sepMGPC_stochastic.R')"
+  R"rm(list = ls())"#Clear R REPL
+  if doStochastic
+    R"source('../src/sepMGPC_stochastic.R')"
+    println("Loaded Stochastic R script")
+  else
+    R"source('../src/sepMGPC_batch.R')"
+    println("Loaded Batch R script")
+  end
 
   export TestingModel
   export get_Dataset
@@ -74,7 +81,7 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
         end
     elseif tm.MethodType == "TTGPMC"
         tm.Model[i] = 0
-    elseif tm.MethodType == "EPGPC"
+    elseif tm.MethodType == "EPGPMC"
         tm.Model[i] = 0
     elseif tm.MethodType == "ARMC"
         tm.Model[i] = Dict{String,Any}(); tm.Model[i]["method_name"] = "softmax_a&r";
@@ -168,10 +175,16 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
             end
       end
       run_nat_grads_with_adam(tm.Model[i], iterations; ind_points_fixed=!tm.Param["PointOptimization"], kernel_fixed =!tm.Param["Autotuning"],callback=pythonlogger)
-    elseif tm.MethodType == "EPGPC"
-        m = tm.Param["M"]; bs = tm.Param["BatchSize"]; pointopt=tm.Param["PointOptimization"]; autotu=tm.Param["Autotuning"];
-        tm.Model[i] = R"epGPCInternal($X, $y, inducingpoints=$ind_points, m = $m, X_test = $X_test, Y_test= $y_test, n_minibatch = $bs, max_iters=$iterations,indpointsopt= $pointopt, hyperparamopt=$autotu,callback=save_log)"
-        LogArrays = rcopy(tm.Model[i][:log_table]).columns[2:end]
+    elseif tm.MethodType == "EPGPMC"
+        m = tm.Param["M"]; bs = tm.Param["BatchSize"]; pointopt=!tm.Param["PointOptimization"]; autotu=tm.Param["Autotuning"];
+        if tm.Param["Stochastic"]
+          tm.Model[i] = R"epMGPCInternal($X, $(y
+        .+1), m = $m, X_test = $X_test, Y_test= $(y_test.+1), n_minibatch = $bs, max_iters=$iterations, indpoints= $pointopt, autotuning=$autotu)"
+        else
+          tm.Model[i] = R"epMGPCInternal($X, $(y
+        .+1), m = $m, X_test = $X_test, Y_test= $(y_test.+1), max_iters=$iterations, indpoints= $pointopt, autotuning=$autotu)"
+        end
+        LogArrays = Matrix(rcopy(tm.Model[i][:log_table]))[:,2:end]
     elseif tm.MethodType == "TTGPMC"
       stable = false
       while !stable
@@ -281,6 +294,7 @@ function TestAccuracy(model::OMGP.GPModel, y_test, y_predic)
     score = 0
     # println(y_predic,y_test)
     for i in 1:length(y_test)
+      # println("$i : $(y_test[i]+1) => $(y_predic[i])")
         if (model.class_mapping[argmax(y_predic[i])]) == y_test[i]
             score += 1
         end
@@ -333,6 +347,10 @@ function WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
     end
 end
 
+function initial_lengthscale(X)
+    D = pairwise(Euclidean(),X)
+    return median([D[i,j] for i in 2:size(D,1) for j in 1:(i-1)])
+end
 
 function PlotResults(TestModels)
     nModels=length(TestModels)
@@ -344,7 +362,7 @@ function PlotResults(TestModels)
         step =1
         for (name,testmodel) in TestModels
             results = testmodel.Results["Processed"]
-            plot(results[1:step:end,1],results[1:step:end,3],color=colors[iter],label=name)
+            semilogx(results[1:step:end,1],results[1:step:end,3],color=colors[iter],label=name)
             fill_between(results[1:step:end,1],results[1:step:end,3]-results[1:step:end,4]/sqrt(10),results[1:step:end,3]+results[1:step:end,4]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
@@ -356,7 +374,7 @@ function PlotResults(TestModels)
         step =1
         for (name,testmodel) in TestModels
             results = testmodel.Results["Processed"]
-            plot(results[1:step:end,1],results[1:step:end,5],color=colors[iter],label=name)
+            semilogx(results[1:step:end,1],results[1:step:end,5],color=colors[iter],label=name)
             fill_between(results[1:step:end,1],results[1:step:end,5]-results[1:step:end,6]/sqrt(10),results[1:step:end,5]+results[1:step:end,6]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
@@ -368,7 +386,7 @@ function PlotResults(TestModels)
         step =1
         for (name,testmodel) in TestModels
             results = testmodel.Results["Processed"]
-            plot(results[1:step:end,1],results[1:step:end,7],color=colors[iter],label=name)
+            semilogx(results[1:step:end,1],results[1:step:end,7],color=colors[iter],label=name)
             fill_between(results[1:step:end,1],results[1:step:end,7]-results[1:step:end,8]/sqrt(10),results[1:step:end,7]+results[1:step:end,8]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
@@ -380,7 +398,7 @@ function PlotResults(TestModels)
         step =1
         for (name,testmodel) in TestModels
             results = testmodel.Results["Processed"]
-            plot(results[1:step:end,1],results[1:step:end,9],color=colors[iter],label=name)
+            semilogx(results[1:step:end,1],results[1:step:end,9],color=colors[iter],label=name)
             fill_between(results[1:step:end,1],results[1:step:end,9]-results[1:step:end,10]/sqrt(10),results[1:step:end,9]+results[1:step:end,10]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end

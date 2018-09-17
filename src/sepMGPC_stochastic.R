@@ -550,9 +550,8 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
                            print_interval = ceiling(nrow(X)/n_minibatch)) {
 
     t0 <<- proc.time()
-    value_log <- data.frame(Iter=numeric(),Time=numeric(),Accuracy=numeric(),MeanLL=numeric(),ELBO=numeric())
+    value_log <- data.frame(Iter=numeric(),Time=numeric(),Accuracy=numeric(),MeanLL=numeric(),MedianLL=numeric(),ELBO=numeric())
     if (!is.factor(Y)){Y <- factor(Y)}
-
     # We initialize the hyper-parameters
     REPORT <- TRUE
     sigma <- exp(log_sigma * 1.0)
@@ -706,16 +705,16 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
                         Xbar[[ j ]] <- a$gMGPCinfo[[ j ]]$Xbar
                     }
                 }
-                q <- reconstructPosterior(a)
             }
 
             # Update posterior after change of the hyper-parameters
+            q <- reconstructPosterior(a)
 
 
             if (cont %% max(1,10^(floor(log10(cont/10)))) == 0) {
 
                 # Reconstruct structure
-
+                cat("Epoch",  cont, "Avg evidence:", avg_evidence / nBatches, "\n")
                 a$f1Hat <- f1Hat
                 a$X <- X
                 a$Y <- Y
@@ -730,7 +729,7 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
                 t_after <- proc.time()
 
                 t0 <- t0 + (t_after - t_before)
-                value_log[nrow(value_log)+1,] <- list(cont,proc.time()[1]-t0[1],1-(performance$err),-(performance$neg_ll),elbo0)
+                value_log[nrow(value_log)+1,] <- list(cont,proc.time()[1]-t0[1],1-(performance$err),-(performance$neg_meanll),-(performance$neg_medll),elbo0)
                 # write.table(t(c(performance$err, performance$neg_ll, proc.time() - t0)),
                 #             file = paste("./results/time_outter_", CONT, ".txt", sep = ""), row.names = F, col.names = F, append = TRUE)
             }
@@ -738,9 +737,7 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
             count_minibatches <- count_minibatches + 1
         }
 
-        cat("\n")
 
-        cat("Epoch",  i, "Avg evidence:", avg_evidence / nBatches, "\n")
 
         # Annealed damping scheme
 
@@ -886,10 +883,10 @@ evaluate_test_performance <- function(ret, X_test, Y_test, q = NULL) {
 
 
     err <- mean(apply(means, 1, which.max) != Y_test)
-    neg_ll <- -mean(log(prob_class))
+    neg_meanll <- -mean(log(prob_class))
+    neg_medll <- -median(log(prob_class),na.rm=TRUE)
 
-
-    list(err = err, neg_ll = neg_ll)
+    list(err = err, neg_meanll = neg_meanll, neg_medll = neg_medll)
 
 
 }

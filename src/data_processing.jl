@@ -6,7 +6,7 @@ function convert_target!(data;end_pos=true)
     else
         y = data[:,1]
     end
-    y = convertlabel(LabelEnc.Indices(nlabel(y)),y).-1
+    y = convertlabel(LabelEnc.Indices(nlabel(y)),["$v" for v in y]).-1
     data = end_pos ? hcat(data[:,1:end-1],y) : hcat(data[:,2:end],y)
     println(data)
     return data
@@ -32,7 +32,7 @@ function shuffle_data!(data)
 end
 
 function full_treatment(data,end_pos=true)
-    data = normalize!(data)
+    data = normalize!(data,end_pos=end_pos)
     data = convert_target!(data,end_pos=end_pos)
     data = shuffle_data!(data)
     return data

@@ -5,7 +5,7 @@ using PyCall
 using Distributions
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
-N_samples = 1000
+N_samples = 150
 N_dim = 2
 N_class = 3
 N_test = 50
@@ -32,11 +32,10 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 # X,y = sk.make_classification(n_samples=N_samples,n_features=N_dim,n_classes=N_class,n_clusters_per_class=1,n_informative=N_dim,n_redundant=0)
 # X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 #Test on the Iris dataet
-# train = readdlm("data/iris-X")
-# X = train[1:100,:]; X_test=train[101:end,:]
-# test = readdlm("data/iris-y")
-# y = test[1:100,:]; y_test=test[101:end,:]
-# truthknown = false
+data = readdlm("data/Iris")
+X = data[1:100,1:end-1]; X_test=data[101:end,1:end-1]
+y = data[1:100,end].+1; y_test=Int64.(data[101:end,end]).+1
+truthknown = false
 #
 # data = readdlm("data/Glass")
 # # Dataset has been already randomized
@@ -60,13 +59,13 @@ R"source('src/sepMGPC_stochastic.R')"
 m=20
 # ind_points = KMeansInducingPoints(X,m,10)
 batchsize=40
-maxiter=1000
+maxiter=100
 indpointsopt=true
  l = 1.0
  hyperparamopt = false
- target_result = "test/results/performances.txt"
  t_EP = @elapsed EPmodel = R"epMGPCInternal($X, $y, m = $m, n_minibatch = $batchsize, X_test=$X_test, Y_test=$y_test, max_iters = $maxiter,autotuning =TRUE)"
  R"y_EP <- predictMGPC($EPmodel,$X_test)"
+ LogArrays = Matrix(rcopy(EPmodel[:log_table]))[:,2:end]
 y_EP = @rget y_EP
 y_pred = map(x->parse(Int64,x),y_EP[:labels])
 EP_score = 0

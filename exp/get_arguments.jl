@@ -9,6 +9,9 @@ function parse_commandline()
             help = "Number of inducing points"
             arg_type = Int
             default = 0
+        "-S" "--stochastic"
+            help = "Run stochastic updates"
+            action = :store_true
         "-b" "--batchsize"
             help = "Size of the minibatches"
             arg_type = Int

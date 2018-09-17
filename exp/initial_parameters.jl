@@ -32,7 +32,7 @@ function XGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
   param["ϵ"] = main_param["ϵ"]; param["Window"] = main_param["Window"]; #Convergence criteria (checking parameters norm variation on a window)
   param["ConvCriter"] = main_param["ConvCriter"]
   # param["Kernels"] = OMGP.ARDKernel([main_param["Θ"]],dim=main_param["nFeatures"]) #Kernel creation (standardized for now)
-  param["Kernels"] = OMGP.RBFKernel(main_param["Θ"]) #Kernel creation (standardized for now)
+  param["Kernels"] = OMGP.RBFKernel(main_param["Θ"],variance=main_param["var"]) #Kernel creation (standardized for now)
   param["Verbose"] = if typeof(main_param["Verbose"]) == Bool; main_param["Verbose"] ? 2 : 0; else; param["Verbose"] = main_param["Verbose"]; end; #Verbose
   param["BatchSize"] = main_param["BatchSize"] #Number of points used for stochasticity
   param["FixedInitialization"] = main_param["FixedInitialization"]
@@ -43,7 +43,7 @@ function XGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
 end
 
 #Create a default parameters dictionary for SVGPMC (similar to XGPMC)
-function SVGPMCParameters(;Stochastic=false,main_param=DefaultParameters())
+function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
   param["Sparse"] = true
@@ -60,9 +60,10 @@ function SVGPMCParameters(;Stochastic=false,main_param=DefaultParameters())
 end
 
 #Create a default parameters dictionary for EPGPC (similar to XGPMC)
-function EPGPMCParameters(;main_param=DefaultParameters())
+function EPGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
+  param["Stochastic"] = Stochastic
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
   param["ϵ"] = main_param["ϵ"]

@@ -11,20 +11,22 @@ if isdir(PWD*"/src")
 else
     SRC_PATH = pwd()*"/../src"
 end
-if !in(LOAD_PATH,SRC_PATH); push!(LOAD_PATH,SRC_PATH); end;
-include("functions_paper_experiment.jl")
+# if !in(LOAD_PATH,SRC_PATH); push!(LOAD_PATH,SRC_PATH); end;
 #Compare XGPMC, BSVM, SVGPMC and others
 
 #Methods and scores to test
 doSXGPMC = !args["XGP"] #Sparse XGPMC (sparsity)
-doEPGPMC = args["EPGP"]
+doEPGPMC = !args["EPGP"]
 doSVGPMC = !args["SVGP"] #Sparse Variational GPMC (Hensmann)
 doARMC = args["AR"]
 doTTGPMC = args["TTGP"]
 
 doBXGPMC = false
-doAutotuning = true#!!!args["autotuning"]
+doStochastic = args["stochastic"]
+doAutotuning = args["autotuning"]
 doPointOptimization = args["point-optimization"]
+
+include("functions_paper_experiment.jl")
 
 ExperimentName = "Convergence"
 doSaveLastState = args["last-state"]
@@ -40,14 +42,14 @@ ShowIntResults = true #Show intermediate time, and results for each fold
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
-dataset = "wine"
+dataset = "Iris"
 # dataset = args["dataset"]
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
 MaxIter = 100#!!!args["maxiter"] #Maximum number of iterations for every algorithm
-iter_points= vcat(1:99,100:10:999,1000:1000:9999)
+iter_points= vcat(1:9,10:5:99,100:50:999,1000:1000:9999)
 (nSamples,nFeatures) = size(X_data);
 nFold = args["nFold"]; #Choose the number of folds
-iFold = 10;#!!!args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
+iFold = 2;#!!!args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
 
 #Main Parameters
@@ -56,20 +58,22 @@ main_param["nFeatures"] = nFeatures
 main_param["nSamples"] = nSamples
 main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["maxIter"]=MaxIter
-main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
+main_param["M"] = 20#!!!args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "rbf"
+l = initial_lengthscale(X_data)
 main_param["Θ"] = 1.5 #initial Hyperparameter of the kernel
+main_param["var"] = 10.0 #Variance
 main_param["nClasses"] = length(unique(y_data))
-main_param["BatchSize"] = args["batchsize"]
+main_param["BatchSize"] = 40#!!!args["batchsize"]
 main_param["Verbose"] = 1
 main_param["Window"] = 10
 main_param["Autotuning"] = doAutotuning
 main_param["PointOptimization"] = doPointOptimization
 #All Parameters
 BXGPMCParam = XGPMCParameters(main_param=main_param,independent=true)
-SXGPMCParam = XGPMCParameters(Stochastic=false,Sparse=true,ALR=true,main_param=main_param,independent=true)
-SVGPMCParam = SVGPMCParameters(Stochastic=true,main_param=main_param)
-EPGPMCParam = EPGPMCParameters(main_param=main_param)
+SXGPMCParam = XGPMCParameters(Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param,independent=true)
+SVGPMCParam = SVGPMCParameters(Stochastic=doStochastic,main_param=main_param)
+EPGPMCParam = EPGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 
 
 #Set of all models
@@ -111,11 +115,11 @@ for (name,testmodel) in TestModels
         y = y_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples))]
         init_t = time_ns()
         CreateModel!(testmodel,i,X,y)
-        LogArrays= hcat(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)...)
         if testmodel.MethodType == "EPGPMC"
-            LogArrays=LogArrays'
+            global LogArrays=copy(transpose(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)))
             testmodel.Results["Time"][i] = LogArrays[1,:]
         else
+            global LogArrays= hcat(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)...)
             a = TreatTime(init_t,LogArrays[1,:],LogArrays[6,:])
             testmodel.Results["Time"][i] = a
         end
@@ -148,9 +152,4 @@ for (name,testmodel) in TestModels
 end #Loop over the models
 if doPlot
     PlotResults(TestModels)
-end
-
-if doPlot
-    println("End of analysis, press enter to exit")
-    readline(STDIN);
 end
