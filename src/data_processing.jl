@@ -1,4 +1,5 @@
-using MLDataUtils, StatsBase, Random
+using MLDataUtils, StatsBase, Random, Statistics
+using DelimitedFiles
 
 function convert_target!(data;end_pos=true)
     if end_pos
@@ -8,22 +9,28 @@ function convert_target!(data;end_pos=true)
     end
     y = convertlabel(LabelEnc.Indices(nlabel(y)),["$v" for v in y]).-1
     data = end_pos ? hcat(data[:,1:end-1],y) : hcat(data[:,2:end],y)
-    println(data)
     return data
 end
 
 function normalize!(data;end_pos=true)
     if end_pos
-        data[:,1] = zscore(Float64.(data[:,1]))
+        data[:,1] = std(data[:,1]) != 0 ?
+        zscore(Float64.(data[:,1])) :
+        zero(Float64.(data[:,1]))
     end
     for i in 2:(size(data,2)-1)
-        data[:,i] = zscore(Float64.(data[:,i]))
+        data[:,i] = std(data[:,i]) != 0 ?
+        zscore(Float64.(data[:,i])) :
+        zero(Float64.(data[:,i]))
     end
     if !end_pos
-        data[:,end] = zscore(Float64.(data[:,end]))
+        data[:,end] = std(data[:,end]) != 0 ?
+        zscore(Float64.(data[:,end])) :
+        zero(Float64.(data[:,end]))
     end
     return data
 end
+
 
 function shuffle_data!(data)
     nSamples = size(data,1)

@@ -22,8 +22,8 @@ doARMC = args["AR"]
 doTTGPMC = args["TTGP"]
 
 doBXGPMC = false
-doStochastic = args["stochastic"]
-doAutotuning = args["autotuning"]
+doStochastic = !args["stochastic"]
+doAutotuning = !args["autotuning"]
 doPointOptimization = args["point-optimization"]
 
 include("functions_paper_experiment.jl")
@@ -42,14 +42,14 @@ ShowIntResults = true #Show intermediate time, and results for each fold
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
-dataset = "Iris"
+dataset = "isolet"
 # dataset = args["dataset"]
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
-MaxIter = 100#!!!args["maxiter"] #Maximum number of iterations for every algorithm
+MaxIter = 1000#!!!args["maxiter"] #Maximum number of iterations for every algorithm
 iter_points= vcat(1:9,10:5:99,100:50:999,1000:1000:9999)
 (nSamples,nFeatures) = size(X_data);
 nFold = args["nFold"]; #Choose the number of folds
-iFold = 2;#!!!args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
+iFold = 5;#!!!args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
 
 #Main Parameters
@@ -58,13 +58,13 @@ main_param["nFeatures"] = nFeatures
 main_param["nSamples"] = nSamples
 main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["maxIter"]=MaxIter
-main_param["M"] = 20#!!!args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
+main_param["M"] = 100#!!!args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "rbf"
 l = initial_lengthscale(X_data)
-main_param["Θ"] = 1.5 #initial Hyperparameter of the kernel
+main_param["Θ"] = 0.5 #initial Hyperparameter of the kernel
 main_param["var"] = 10.0 #Variance
 main_param["nClasses"] = length(unique(y_data))
-main_param["BatchSize"] = 40#!!!args["batchsize"]
+main_param["BatchSize"] = 100#!!!args["batchsize"]
 main_param["Verbose"] = 1
 main_param["Window"] = 10
 main_param["Autotuning"] = doAutotuning
