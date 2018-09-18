@@ -2,11 +2,11 @@
 #= ---------------- #
 Set of functions for efficient testing.
 # ---------------- =#
-using DelimitedFiles
 
 
 
 # module TestFunctions
+  using DelimitedFiles
   using PyCall
   using Distances, LinearAlgebra, Distributions
   # using MATLAB
@@ -279,7 +279,7 @@ function PrintResults(results,method_name,writing_order)
 end
 
 function WriteResults(tm::TestingModel,location,writing_order)
-    fold = String(location*(doAutotuning ? "AT_" : "")*(doStochastic ? "S_" : "")"/Experiment")
+    fold = String(location*"/"*(doAutotuning ? "AT_" : "")*(doStochastic ? "S_" : "")*"/Experiment")
     if !isdir(fold); mkdir(fold); end;
     fold = fold*"/"*tm.DatasetName*"Dataset"
     labels=Array{String,1}(undef,length(writing_order)*2)

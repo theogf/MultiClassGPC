@@ -106,8 +106,8 @@ for (name,testmodel) in TestModels
         end
         X_test = X_data[fold_separation[i]:(fold_separation[i+1])-1,:]
         y_test = y_data[fold_separation[i]:(fold_separation[i+1])-1]
-        if (length(y_test) > 100000 )#When test set is too big, reduce it for time purposes
-            subset = StatsBase.sample(1:length(y_test),100000,replace=false)
+        if (length(y_test) > 10000 )#When test set is too big, reduce it for time purposes
+            subset = StatsBase.sample(1:length(y_test),10000,replace=false)
             X_test = X_test[subset,:];
             y_test = y_test[subset];
         end
