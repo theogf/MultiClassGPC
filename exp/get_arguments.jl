@@ -23,7 +23,7 @@ function parse_commandline()
             help = "Optimize inducing point location"
             action = :store_true
         "--maxiter", "-I"
-            help = "Maximum number of iterations"
+            help = "Maximum number of iterations (x10 for SVGP)"
             arg_type = Int
             default = 100
         "--XGP"

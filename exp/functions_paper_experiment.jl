@@ -114,7 +114,7 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
         op_adam = gpflow.train[:AdamOptimizer]()[:make_optimize_tensor](model)
     end
 
-    for i in 1:iterations
+    for i in 1:(10*iterations)
         try
             sess[:run](op_natgrad);sess[:run](op_increment_gamma)
         catch e
@@ -279,7 +279,7 @@ function PrintResults(results,method_name,writing_order)
 end
 
 function WriteResults(tm::TestingModel,location,writing_order)
-    fold = String(location*"/Experiment"*(doAutotuning ? "_AT" : ""))
+    fold = String(location*(doAutotuning ? "AT_" : "")*(doStochastic ? "S_" : "")"/Experiment")
     if !isdir(fold); mkdir(fold); end;
     fold = fold*"/"*tm.DatasetName*"Dataset"
     labels=Array{String,1}(undef,length(writing_order)*2)
