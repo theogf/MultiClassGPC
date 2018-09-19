@@ -11,6 +11,6 @@ echo $files
 for i in "${files[@]}"
 do
 	screen -S "${prefix}${i}" -d -m
-	screen -r "${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 paper_experiments.jl $i --XGP --SVGP --EPGP -S -A -b 100 -M 100 -I 3000 ^M-R 
+	screen -r "${prefix}${i}" -p 0 -X stuff "julia -p 1 paper_experiments.jl $i --XGP --SVGP --EPGP  -A -b 100 -M 100 -I 1000 ^M"
 	echo "Created screen ${prefix}${i} and ran experiment"
 done

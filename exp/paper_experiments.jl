@@ -4,13 +4,6 @@
 
 include("get_arguments.jl")
 
-#Add the path necessary modules
-PWD = pwd()
-if isdir(PWD*"/src")
-    SRC_PATH = pwd()*"/src"
-else
-    SRC_PATH = pwd()*"/../src"
-end
 # if !in(LOAD_PATH,SRC_PATH); push!(LOAD_PATH,SRC_PATH); end;
 #Compare XGPMC, BSVM, SVGPMC and others
 
@@ -131,7 +124,7 @@ for (name,testmodel) in TestModels
             println("$(testmodel.MethodName) : Time  = $((time_ns()-init_t)*1e-9)s, accuracy : $(LogArrays[2,end])")
         end
         if doWrite && doSaveLastState
-            top_fold = SRC_PATH*"/../results";
+            top_fold = "results";
             if !isdir(top_fold); mkdir(top_fold); end;
             WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
         end
