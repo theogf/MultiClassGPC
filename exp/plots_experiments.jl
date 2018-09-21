@@ -16,14 +16,20 @@ markers=Dict(16=>"",32=>"o",64=>"x",128=>"+")
 metrics = Dict("Accuracy"=>3,"MeanL"=>5,"MedianL"=>7,"ELBO"=>9)
 
 # location of the results
-c = "../cluster_results/ConvergenceExperiment_AT/"
-l = "results/AT_Experiment/"
-ls = "results/AT_S_Experiment/"
+c = "../cluster/AT_Experiment/"
+cs = "../cluster/AT_S_Experiment/"
+l = "results/Experiment/"
+las = "results/AT_S_Experiment/"
+ls = "results/S_Experiment/"
 f = "../final_results/"
 loc = Dict{String,Dict{String,String}}()
 loc["iris"] =           Dict("SXGPMC"=>l,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
 loc["wine"] =           Dict("SXGPMC"=>l,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
 loc["glass"] =          Dict("SXGPMC"=>l,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
+loc["vehicle"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["dna"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["satimage"] =          Dict("SXGPMC"=>ls,"SVGPMC"=>ls,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["segment"] =          Dict("SXGPMC"=>ls,"SVGPMC"=>ls,"EPGPMC"=>ls,"TTGPC"=>cs)
 loc["Cod-rna"] =            Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
 loc["Covtype"] =            Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
 loc["Credit_card"] =        Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
@@ -239,7 +245,7 @@ end
 sizes = Dict("aXa"=>(36974,123),"Bank_marketing"=>(45211,43),"Click_Prediction"=>(399482,12),"Cod-rna"=>(343564,8),"Covtype"=>(581012,54),
                     "Diabetis"=>(768,8),"Electricity"=>(45312,8),"German"=>(1000,20),"HIGGS"=>(11000000,28),"Ijcnn1"=>(141691,22),"Mnist"=>(70000,780),"Poker"=>(1025010,10),
                     "Protein"=>(24837,357),"Shuttle"=>(58000,9),"SUSY"=>(5000000,18),"Vehicle"=>(98528,100),"wXa"=>(34780,300))
-DatasetNameCorrection = Dict("iris"=>"Iris","wine"=>"Wine","glass"=>"Glass",
+DatasetNameCorrection = Dict("iris"=>"Iris","wine"=>"Wine","glass"=>"Glass","vehicle"=>"Vehicle", "segment"=>"Segment", "dna"=>"DNA","satimage"=>"SatImage",
                             "Cod-rna"=>"Cod RNA", "Covtype"=>"Cov Type", "Diabetis"=>"Diabetis","Electricity"=>"Electricity",
                             "German"=>"German","HIGGS"=>"Higgs","Ijcnn1"=>"IJCNN","Mnist"=>"Mnist","Shuttle"=>"Shuttle","SUSY"=>"SUSY","Vehicle"=>"Vehicle","wXa"=>"wXa")
 function Table()

@@ -153,7 +153,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
                 a[5] = -OMGP.ELBO(model)
-                println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[4])")
+                println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
                 a[6] = time_ns()
                 push!(LogArrays,a)
             end

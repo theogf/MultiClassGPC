@@ -54,7 +54,7 @@ main_param["maxIter"]=MaxIter
 main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "rbf"
 l = initial_lengthscale(X_data)
-main_param["Θ"] = 0.5 #initial Hyperparameter of the kernel
+main_param["Θ"] = 1.0 #initial Hyperparameter of the kernel
 main_param["var"] = 10.0 #Variance
 main_param["nClasses"] = length(unique(y_data))
 main_param["BatchSize"] = args["batchsize"]
