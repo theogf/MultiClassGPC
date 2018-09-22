@@ -22,12 +22,13 @@ end
 function XGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,independent=true,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
+  param["nSamples"] = main_param["nSamples"]
   param["Stochastic"] = Stochastic #Is the method stochastic
   param["Sparse"] = Sparse #Is the method using inducing points
   param["ALR"] = ALR #Is the method using adpative learning rate (in case of the stochastic case)
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
-  param["ATFrequency"] = 2 #Number of iterations between every autotuning
+  param["ATFrequency"] = param["Stochastic"] ? 5 : 1 #Number of iterations between every autotuning
   param["κ_s"] = 1.0;  param["τ_s"] = 40; #Parameters for learning rate of Stochastic gradient descent when ALR is not used
   param["ϵ"] = main_param["ϵ"]; param["Window"] = main_param["Window"]; #Convergence criteria (checking parameters norm variation on a window)
   param["ConvCriter"] = main_param["ConvCriter"]
@@ -46,6 +47,7 @@ end
 function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
+  param["nSamples"] = main_param["nSamples"]
   param["Sparse"] = true
   param["Stochastic"] = Stochastic
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
@@ -63,6 +65,7 @@ end
 function EPGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
+  param["nSamples"] = main_param["nSamples"]
   param["Stochastic"] = Stochastic
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed

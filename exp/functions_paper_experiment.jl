@@ -8,7 +8,7 @@ Set of functions for efficient testing.
 # module TestFunctions
   using DelimitedFiles
   using PyCall
-  using Distances, LinearAlgebra, Distributions
+  using Distances, LinearAlgebra, Distributions,StatsBase
   # using MATLAB
   import OMGP
   @pyimport gpflow
@@ -61,23 +61,24 @@ include("initial_parameters.jl")
 
 #Create a model given the parameters passed in p
 function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
+    y_cmap = countmap(y)
     if tm.MethodType == "BXGPMC"
         tm.Model[i] = OMGP.MultiClass(X,y;kernel=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
             VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? Float64.(zero(y)) : [0.0],IndependentGPs=tm.Param["independent"])
     elseif tm.MethodType == "SXGPMC"
-        tm.Model[i] = OMGP.SparseMultiClass(X,y;Stochastic=tm.Param["Stochastic"],batchsize=tm.Param["BatchSize"],m=tm.Param["M"],
+        tm.Param["time_init"] = @elapsed tm.Model[i] = OMGP.SparseMultiClass(X,y;Stochastic=tm.Param["Stochastic"],batchsize=tm.Param["BatchSize"],m=tm.Param["M"],
             kernel=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],
             AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
             SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0],IndependentGPs=tm.Param["independent"])
     elseif tm.MethodType == "SVGPMC"
+        Z = OMGP.KMeansInducingPoints(X,tm.Param["M"],10)
+        tm.Param["time_init"] = @elapsed A = Ind_KMeans.([y_cmap],[y],[X],tm.Param["M"],0:(tm.Param["nClasses"]-1))
         if tm.Param["Stochastic"]
             #Stochastic Sparse SVGPC model
-            tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],
-             Z=OMGP.KMeansInducingPoints(X,tm.Param["M"],10))
+            tm.Param["time_init"] += @elapsed tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z)
         else
             #Sparse SVGPC model
-            tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],
-             Z=OMGP.KMeansInducingPoints(X,tm.Param["M"],10))
+            tm.Param["time_init"] += @elapsed tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z)
         end
     elseif tm.MethodType == "TTGPMC"
         tm.Model[i] = 0
@@ -140,6 +141,15 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
     model[:anchor](sess)
 end
 
+"Function to obtain the weighted KMeans for one class"
+function Ind_KMeans(N_inst,Y,X,m,i)
+    nSamples = size(X,1)
+    K_corr = nSamples/N_inst[i]-1.0
+    weights = ones(nSamples)
+    weights[Y.==i] = weights[Y.==i].*(K_corr-1.0).+(1.0)
+    return OMGP.KMeansInducingPoints(X,m,10,weights=weights)
+end
+
 function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points)
     LogArrays = Array{Any,1}()
     if typeof(tm.Model[i]) <: OMGP.GPModel
@@ -147,7 +157,8 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
             if in(iter,iter_points)
                 a = zeros(6)
                 a[1] = time_ns()
-                y_p = OMGP.multiclasspredict(model,X_test,true)
+                y_p = OMGP.multiclasspredictproba(model,X_test,false)
+                y_exp = OMGP.multiclasssoftmax(model,X_test,false)
                 a[2] = TestAccuracy(model,y_test,y_p)
                 loglike = LogLikelihood(model,y_test,y_p)
                 a[3] = mean(loglike)
@@ -176,15 +187,18 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
       end
       run_nat_grads_with_adam(tm.Model[i], iterations; ind_points_fixed=!tm.Param["PointOptimization"], kernel_fixed =!tm.Param["Autotuning"],callback=pythonlogger)
     elseif tm.MethodType == "EPGPMC"
+        y_cmap = countmap(y)
         m = tm.Param["M"]; bs = tm.Param["BatchSize"]; pointopt=!tm.Param["PointOptimization"]; autotu=tm.Param["Autotuning"];
+        tm.Param["time_init"] = @elapsed Xbar_ini = Ind_KMeans.([y_cmap],[y],[X],m,0:(tm.Param["nClasses"]-1))
         if tm.Param["Stochastic"]
           tm.Model[i] = R"epMGPCInternal($X, $(y
-        .+1), m = $m, X_test = $X_test, Y_test= $(y_test.+1), n_minibatch = $bs, max_iters=$iterations, indpoints= $pointopt, autotuning=$autotu)"
+        .+1), m = $m, X_test = $X_test, Y_test= $(y_test.+1), n_minibatch = $bs, max_iters=$iterations, indpoints= $pointopt, autotuning=$autotu, Xbar_ini=$Xbar_ini)"
         else
           tm.Model[i] = R"epMGPCInternal($X, $(y
         .+1), m = $m, X_test = $X_test, Y_test= $(y_test.+1), max_iters=$iterations, indpoints= $pointopt, autotuning=$autotu)"
         end
         LogArrays = Matrix(rcopy(tm.Model[i][:log_table]))[:,2:end]
+        LogArrays[:,1] += tm.Param["time_init"]
     elseif tm.MethodType == "TTGPMC"
       stable = false
       while !stable

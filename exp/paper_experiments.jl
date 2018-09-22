@@ -55,7 +55,7 @@ main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64
 main_param["Kernel"] = "rbf"
 l = initial_lengthscale(X_data)
 main_param["Θ"] = 1.0 #initial Hyperparameter of the kernel
-main_param["var"] = 10.0 #Variance
+main_param["var"] = 1.0 #Variance
 main_param["nClasses"] = length(unique(y_data))
 main_param["BatchSize"] = args["batchsize"]
 main_param["Verbose"] = 1
@@ -114,7 +114,7 @@ for (name,testmodel) in TestModels
         else
             global LogArrays= hcat(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)...)
             a = TreatTime(init_t,LogArrays[1,:],LogArrays[6,:])
-            testmodel.Results["Time"][i] = a
+            testmodel.Results["Time"][i] = a .+ testmodel.Param["time_init"]
         end
         testmodel.Results["Accuracy"][i] = LogArrays[2,:]
         testmodel.Results["MeanL"][i] = LogArrays[3,:]
