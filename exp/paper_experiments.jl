@@ -9,14 +9,14 @@ include("get_arguments.jl")
 
 #Methods and scores to test
 doSXGPMC = args["XGP"] #Sparse XGPMC (sparsity)
-doEPGPMC = args["EPGP"]
-doSVGPMC = args["SVGP"] #Sparse Variational GPMC (Hensmann)
+doEPGPMC = !args["EPGP"]
+doSVGPMC = !args["SVGP"] #Sparse Variational GPMC (Hensmann)
 doARMC = args["AR"]
 doTTGPMC = args["TTGP"]
 
 doBXGPMC = false
-doStochastic = args["stochastic"]
-doAutotuning = args["autotuning"]
+doStochastic = !args["stochastic"]
+doAutotuning = !args["autotuning"]
 doPointOptimization = args["point-optimization"]
 
 include("functions_paper_experiment.jl")
@@ -35,15 +35,20 @@ ShowIntResults = true #Show intermediate time, and results for each fold
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
-# dataset = "isolet"
-dataset = args["dataset"]
+dataset = "mnist"
+# dataset = args["dataset"]
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
-MaxIter = args["maxiter"] #Maximum number of iterations for every algorithm
+MaxIter = 500#!! args["maxiter"] #Maximum number of iterations for every algorithm
 iter_points= vcat(1:9,10:5:99,100:50:999,1000:1000:9999)
+
 (nSamples,nFeatures) = size(X_data);
 nFold = args["nFold"]; #Choose the number of folds
-iFold = args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
+iFold = 1#!!!args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
+N_test_max = 1000
+if nSamples/nFold > N_test_max
+        subset = StatsBase.sample(1:floor(Int64,nSamples/nFold),N_test_max,replace=false)
+end
 
 #Main Parameters
 main_param = DefaultParameters()
@@ -53,9 +58,9 @@ main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["maxIter"]=MaxIter
 main_param["γ"] = 1e-2
 main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
-main_param["Kernel"] = "rbf"
+main_param["Kernel"] = "ard"
 l = initial_lengthscale(X_data)
-main_param["Θ"] = 1.0 #initial Hyperparameter of the kernel
+main_param["Θ"] = sqrt(l) #initial Hyperparameter of the kernel
 main_param["var"] = 1.0 #Variance
 main_param["nClasses"] = length(unique(y_data))
 main_param["BatchSize"] = args["batchsize"]
@@ -100,10 +105,9 @@ for (name,testmodel) in TestModels
         end
         X_test = X_data[fold_separation[i]:(fold_separation[i+1])-1,:]
         y_test = y_data[fold_separation[i]:(fold_separation[i+1])-1]
-        if (length(y_test) > 10000 )#When test set is too big, reduce it for time purposes
-            subset = StatsBase.sample(1:length(y_test),10000,replace=false)
-            X_test = X_test[subset,:];
-            y_test = y_test[subset];
+        if nSamples/nFold > N_test_max
+            X_test = X_test[subset,:]
+            y_test = y_test[subset,:]
         end
         X = X_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples)),:]
         y = y_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples))]
@@ -115,7 +119,7 @@ for (name,testmodel) in TestModels
         else
             global LogArrays= hcat(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)...)
             a = TreatTime(init_t,LogArrays[1,:],LogArrays[6,:])
-            testmodel.Results["Time"][i] = a .+ testmodel.Param["time_init"]
+            # testmodel.Results["Time"][i] = a .+ testmodel.Param["time_init"]
         end
         testmodel.Results["Accuracy"][i] = LogArrays[2,:]
         testmodel.Results["MeanL"][i] = LogArrays[3,:]

@@ -6,7 +6,7 @@ function DefaultParameters()
   param["BatchSize"] = 10 #Number of points used for stochasticity
   param["Kernel"] = "rbf" # Kernel function
   param["Θ"] = 1.0 # Hyperparameter for the kernel function
-  param["γ"] = 1.0 #Variance of introduced noise
+  param["γ"] = 1e-3 #Variance of introduced noise
   param["M"] = 32 #Number of inducing points
   param["Window"] = 5 #Number of points used to check convergence (smoothing effect)
   param["Verbose"] = 0 #Verbose
@@ -32,8 +32,11 @@ function XGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
   param["κ_s"] = 1.0;  param["τ_s"] = 40; #Parameters for learning rate of Stochastic gradient descent when ALR is not used
   param["ϵ"] = main_param["ϵ"]; param["Window"] = main_param["Window"]; #Convergence criteria (checking parameters norm variation on a window)
   param["ConvCriter"] = main_param["ConvCriter"]
-  # param["Kernels"] = OMGP.ARDKernel([main_param["Θ"]],dim=main_param["nFeatures"],variance=main_param["var"]) #Kernel creation (standardized for now)
-  param["Kernels"] = OMGP.RBFKernel(main_param["Θ"],variance=main_param["var"]) #Kernel creation (standardized for now)
+  if main_param["Kernel"] == "rbf"
+    param["Kernel"] = OMGP.RBFKernel(main_param["Θ"],variance=main_param["var"]) #Kernel creation (standardized for now)
+  else
+    param["Kernel"] = OMGP.ARDKernel([main_param["Θ"]],dim=main_param["nFeatures"],variance=main_param["var"]) #Kernel creation (standardized for now)
+  end
   param["Verbose"] = if typeof(main_param["Verbose"]) == Bool; main_param["Verbose"] ? 2 : 0; else; param["Verbose"] = main_param["Verbose"]; end; #Verbose
   param["BatchSize"] = main_param["BatchSize"] #Number of points used for stochasticity
   param["FixedInitialization"] = main_param["FixedInitialization"]
@@ -53,7 +56,11 @@ function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
   param["ϵ"] = main_param["ϵ"]
-  param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+  if main_param["Kernel"] == "rbf"
+  param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+  else
+    param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+  end
   param["BatchSize"] = main_param["BatchSize"]
   param["M"] = main_param["M"]
   param["SmoothingWindow"] = main_param["Window"]

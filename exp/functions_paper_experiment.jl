@@ -6,7 +6,7 @@ Set of functions for efficient testing.
 
 
 # module TestFunctions
-  using DelimitedFiles
+  using DelimitedFiles, CSV
   using PyCall
   using Distances, LinearAlgebra, Distributions,StatsBase
   # using MATLAB
@@ -38,7 +38,7 @@ Set of functions for efficient testing.
   export ComputePrediction, ComputePredictionAccuracy
 
 function get_Dataset(datasetname::String)
-    data = readdlm("../data/"*datasetname)
+    data = Matrix{Float64}(CSV.read("../data/"*datasetname*".csv",header=false))
     X = data[:,1:end-1]; y = floor.(Int64,data[:,end]);
     return (X,y,datasetname)
 end
@@ -63,24 +63,27 @@ include("initial_parameters.jl")
 function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
     y_cmap = countmap(y)
     if tm.MethodType == "BXGPMC"
-        tm.Model[i] = OMGP.MultiClass(X,y;kernel=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
+        tm.Model[i] = OMGP.MultiClass(X,y;kernel=tm.Param["Kernel"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
             VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? Float64.(zero(y)) : [0.0],IndependentGPs=tm.Param["independent"])
     elseif tm.MethodType == "SXGPMC"
-        tm.Param["time_init"] = @elapsed tm.Model[i] = OMGP.SparseMultiClass(X,y;Stochastic=tm.Param["Stochastic"],batchsize=tm.Param["BatchSize"],m=tm.Param["M"],
-            kernel=tm.Param["Kernels"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],
+        # tm.Param["time_init"] = @elapsed
+        tm.Model[i] = OMGP.SparseMultiClass(X,y;Stochastic=tm.Param["Stochastic"],batchsize=tm.Param["BatchSize"],m=tm.Param["M"],
+            kernel=tm.Param["Kernel"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],
             AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
             SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0],IndependentGPs=tm.Param["independent"])
     elseif tm.MethodType == "SVGPMC"
         Z = OMGP.KMeansInducingPoints(X,tm.Param["M"],10)
-        tm.Param["time_init"] = @elapsed A = Ind_KMeans.([y_cmap],[y],[X],tm.Param["M"],0:(tm.Param["nClasses"]-1))
+        # tm.Param["time_init"] = @elapsed A = Ind_KMeans.([y_cmap],[y],[X],tm.Param["M"],0:(tm.Param["nClasses"]-1))
         if tm.Param["Stochastic"]
             #Stochastic Sparse SVGPC model
             println("Creating stochastic SVGP")
-            tm.Param["time_init"] += @elapsed tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z,minibatch_size=tm.Param["BatchSize"])
+            # tm.Param["time_init"] += @elapsed
+            tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z,minibatch_size=tm.Param["BatchSize"])
         else
             #Sparse SVGPC model
             println("Creating full batch SVGP")
-            tm.Param["time_init"] += @elapsed tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z)
+            # tm.Param["time_init"] += @elapsed
+            tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z)
         end
     elseif tm.MethodType == "TTGPMC"
         tm.Model[i] = 0
@@ -172,7 +175,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
                 a[5] = -OMGP.ELBO(model)
-                a[7] = [OMGP.KernelFunctions.getvalue(k.param) for k in model.kernel]
+                # a[7] = [OMGP.KernelFunctions.getvalue(k.param) for k in model.kernel]
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
                 a[6] = time_ns()
                 push!(LogArrays,a)
@@ -200,7 +203,8 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
     elseif tm.MethodType == "EPGPMC"
         y_cmap = countmap(y)
         m = tm.Param["M"]; bs = tm.Param["BatchSize"]; pointopt=!tm.Param["PointOptimization"]; autotu=tm.Param["Autotuning"];
-        tm.Param["time_init"] = @elapsed Xbar_ini = Ind_KMeans.([y_cmap],[y],[X],m,0:(tm.Param["nClasses"]-1))
+        #tm.Param["time_init"] = @elapsed
+        Xbar_ini = Ind_KMeans.([y_cmap],[y],[X],m,0:(tm.Param["nClasses"]-1))
         if tm.Param["Stochastic"]
           tm.Model[i] = R"epMGPCInternal($X, $(y
         .+1), m = $m, X_test = $X_test, Y_test= $(y_test.+1), n_minibatch = $bs, max_iters=$iterations, indpoints= $pointopt, autotuning=$autotu, Xbar_ini=$Xbar_ini)"
@@ -209,7 +213,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
         .+1), m = $m, X_test = $X_test, Y_test= $(y_test.+1), max_iters=$iterations, indpoints= $pointopt, autotuning=$autotu)"
         end
         LogArrays = Matrix(rcopy(tm.Model[i][:log_table]))[:,2:end]
-        LogArrays[:,1] = LogArrays[:,1] .+ tm.Param["time_init"]
+        # LogArrays[:,1] = LogArrays[:,1] .+ tm.Param["time_init"]
     elseif tm.MethodType == "TTGPMC"
       stable = false
       while !stable
