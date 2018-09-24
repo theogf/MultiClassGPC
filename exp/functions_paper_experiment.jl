@@ -31,15 +31,17 @@ Set of functions for efficient testing.
     println("Loaded Batch R script")
   end
 
-  export TestingModel
-  export get_Dataset
-  export DefaultParameters, XGPMCParameters, SVGPMCParameters, ARMCParameters, TTGPMCParameters
-  export CreateModel, TrainModel, RunTests, ProcessResults, PrintResults, WriteResults
-  export ComputePrediction, ComputePredictionAccuracy
+  # export TestingModel
+  # export get_Dataset
+  # export DefaultParameters, XGPMCParameters, SVGPMCParameters, ARMCParameters, TTGPMCParameters
+  # export CreateModel, TrainModel, RunTests, ProcessResults, PrintResults, WriteResults
+  # export ComputePrediction, ComputePredictionAccuracy
 
 function get_Dataset(datasetname::String)
+    println("Getting dataset")
     data = Matrix{Float64}(CSV.read("../data/"*datasetname*".csv",header=false))
     X = data[:,1:end-1]; y = floor.(Int64,data[:,end]);
+    println("Dataset loaded")
     return (X,y,datasetname)
 end
 
@@ -175,7 +177,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
                 a[5] = -OMGP.ELBO(model)
-                # a[7] = [OMGP.KernelFunctions.getvalue(k.param) for k in model.kernel]
+                a[7] = 0#[OMGP.KernelFunctions.getvalue(k.param) for k in model.kernel]
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
                 a[6] = time_ns()
                 push!(LogArrays,a)

@@ -35,8 +35,8 @@ ShowIntResults = true #Show intermediate time, and results for each fold
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
-dataset = "mnist"
-# dataset = args["dataset"]
+# dataset = "mnist"
+dataset = args["dataset"]
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
 MaxIter = args["maxiter"] #Maximum number of iterations for every algorithm
 iter_points= vcat(1:9,10:5:99,100:50:999,1000:1000:9999)
@@ -118,7 +118,7 @@ for (name,testmodel) in TestModels
             testmodel.Results["Time"][i] = LogArrays[1,:]
         else
             global LogArrays= hcat(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)...)
-            a = TreatTime(init_t,LogArrays[1,:],LogArrays[6,:])
+            testmodel.Results["Time"][i] = TreatTime(init_t,LogArrays[1,:],LogArrays[6,:])
             # testmodel.Results["Time"][i] = a .+ testmodel.Param["time_init"]
         end
         testmodel.Results["Accuracy"][i] = LogArrays[2,:]
