@@ -9,14 +9,14 @@ include("get_arguments.jl")
 
 #Methods and scores to test
 doSXGPMC = args["XGP"] #Sparse XGPMC (sparsity)
-doEPGPMC = !args["EPGP"]
-doSVGPMC = !args["SVGP"] #Sparse Variational GPMC (Hensmann)
+doEPGPMC = args["EPGP"]
+doSVGPMC = args["SVGP"] #Sparse Variational GPMC (Hensmann)
 doARMC = args["AR"]
 doTTGPMC = args["TTGP"]
 
 doBXGPMC = false
-doStochastic = !args["stochastic"]
-doAutotuning = !args["autotuning"]
+doStochastic = args["stochastic"]
+doAutotuning = args["autotuning"]
 doPointOptimization = args["point-optimization"]
 
 include("functions_paper_experiment.jl")
@@ -38,14 +38,14 @@ aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, S
 dataset = "mnist"
 # dataset = args["dataset"]
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
-MaxIter = 500#!! args["maxiter"] #Maximum number of iterations for every algorithm
+MaxIter = args["maxiter"] #Maximum number of iterations for every algorithm
 iter_points= vcat(1:9,10:5:99,100:50:999,1000:1000:9999)
 
 (nSamples,nFeatures) = size(X_data);
 nFold = args["nFold"]; #Choose the number of folds
-iFold = 1#!!!args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
+iFold = args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
-N_test_max = 1000
+N_test_max = 10000
 if nSamples/nFold > N_test_max
         subset = StatsBase.sample(1:floor(Int64,nSamples/nFold),N_test_max,replace=false)
 end
