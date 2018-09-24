@@ -63,7 +63,7 @@ batchsize=40
 iterations=10000
 Z = KMeansInducingPoints(X,m,10)
 l=1.0
-kernel = gpflow.kernels[:RBF](N_dim,lengthscales=l,ARD=false)+gpflow.kernels[:White](N_dim,variance=noise)
+kernel = gpflow.kernels[:RBF](N_dim,lengthscales=l,ARD=true)+gpflow.kernels[:White](N_dim,variance=noise)
 model = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),num_latent=N_class,kern=kernel, likelihood=gpflow.likelihoods[:MultiClass](N_class), Z=Z)
 LogArrays = Array{Any,1}()
 iter_points = vcat(1:99,100:10:999,1000:100:9999)
@@ -155,7 +155,7 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
     end
     model[:anchor](sess)
 end
-t_SV = @elapsed run_nat_grads_with_adam(model, iterations; ind_points_fixed=false, kernel_fixed =false,callback=pythonlogger)
+t_SV = @elapsed run_nat_grads_with_adam(model, iterations; ind_points_fixed=false, kernel_fixed=false,callback=pythonlogger)
 y_SV = model[:predict_y](X_test)[1]
 acc_SV = 1-sum(abs.(sign.(y_SV-0.5)-y_test))/(2*length(y_test))
 println("SVGPC model : Acc=$(acc_SV), time=$t_SV")

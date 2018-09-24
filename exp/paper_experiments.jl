@@ -51,6 +51,7 @@ main_param["nFeatures"] = nFeatures
 main_param["nSamples"] = nSamples
 main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["maxIter"]=MaxIter
+main_param["γ"] = 1e-2
 main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "rbf"
 l = initial_lengthscale(X_data)
@@ -130,9 +131,9 @@ for (name,testmodel) in TestModels
         end
         #Reset the kernel
         if testmodel.MethodName == "SVGPMC"
-            testmodel.Param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+            testmodel.Param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
         elseif testmodel.MethodName == "SXGPMC"
-            println("SXGPMC : params : $(OMGP.getvalue(testmodel.Model[i].kernel[1].param[1])), and coeffs $(OMGP.getvalue(testmodel.Model[i].kernel[1].variance))")
+            println("SXGPMC : params : $([OMGP.KernelFunctions.getvalue(k.param) for k in testmodel.Model[i].kernel])\n and coeffs :  $([OMGP.KernelFunctions.getvalue(k.variance) for k in testmodel.Model[i].kernel])")
         end
     end # of the loop over the folds
     ProcessResults(testmodel,iFold)

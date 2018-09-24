@@ -75,9 +75,11 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
         tm.Param["time_init"] = @elapsed A = Ind_KMeans.([y_cmap],[y],[X],tm.Param["M"],0:(tm.Param["nClasses"]-1))
         if tm.Param["Stochastic"]
             #Stochastic Sparse SVGPC model
-            tm.Param["time_init"] += @elapsed tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]), likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z)
+            println("Creating stochastic SVGP")
+            tm.Param["time_init"] += @elapsed tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z,minibatch_size=tm.Param["BatchSize"])
         else
             #Sparse SVGPC model
+            println("Creating full batch SVGP")
             tm.Param["time_init"] += @elapsed tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z)
         end
     elseif tm.MethodType == "TTGPMC"
@@ -93,13 +95,18 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
 end
 
 
-function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel_fixed =false, callback=nothing)
+function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel_fixed =false, callback=nothing , Stochastic = true)
     # we'll make use of this later when we use a XiTransform
 
-    gamma_start = 1e-5;    gamma_max = 1e-1;    gamma_step = 10^(0.1);
+    gamma_start = 1e-4;
+    if Stochastic
+        gamma_max = 1e-2;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
+    else
+        gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
+    end
     gamma = tf.Variable(gamma_start,dtype=tf.float64);    gamma_incremented = tf.where(tf.less(gamma,gamma_max),gamma*gamma_step,gamma_max)
     op_increment_gamma = tf.assign(gamma,gamma_incremented)
-    gamma_fallback = 1e-1;    op_gamma_fallback = tf.assign(gamma,gamma*gamma_fallback);
+    op_gamma_fallback = tf.assign(gamma,gamma*gamma_fallback);
     sess = model[:enquire_session]();    sess[:run](tf.variables_initializer([gamma]));
     var_list = [(model[:q_mu], model[:q_sqrt])]
     # we don't want adam optimizing these
@@ -155,15 +162,17 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
     if typeof(tm.Model[i]) <: OMGP.GPModel
         function LogIt(model::OMGP.GPModel,iter)
             if in(iter,iter_points)
-                a = zeros(6)
+                a = Vector{Any}(undef,7)
                 a[1] = time_ns()
                 y_p = OMGP.multiclasspredictproba(model,X_test,false)
                 y_exp = OMGP.multiclasssoftmax(model,X_test,false)
                 a[2] = TestAccuracy(model,y_test,y_p)
                 loglike = LogLikelihood(model,y_test,y_p)
+                # loglike_exp = LogLikelihood(model,y_test,y_exp)
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
                 a[5] = -OMGP.ELBO(model)
+                a[7] = [OMGP.KernelFunctions.getvalue(k.param) for k in model.kernel]
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
                 a[6] = time_ns()
                 push!(LogArrays,a)
@@ -173,7 +182,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
     elseif tm.MethodType == "SVGPMC"
       function pythonlogger(model,session,iter)
             if in(iter,iter_points)
-                a = zeros(8)
+                a = Vector{Any}(undef,7)
                 a[1] = time_ns()
                 y_p = model[:predict_y](X_test)[1]
                 loglike = LogLikelihood(y_test,y_p)
@@ -181,11 +190,13 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
                 a[5] = session[:run](model[:likelihood_tensor])
+                a[7] = 0
+                println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
                 a[6] = time_ns()
                 push!(LogArrays,a)
             end
       end
-      run_nat_grads_with_adam(tm.Model[i], iterations; ind_points_fixed=!tm.Param["PointOptimization"], kernel_fixed =!tm.Param["Autotuning"],callback=pythonlogger)
+      run_nat_grads_with_adam(tm.Model[i], iterations; ind_points_fixed=!tm.Param["PointOptimization"], kernel_fixed =!tm.Param["Autotuning"],callback=pythonlogger,Stochastic=tm.Param["Stochastic"])
     elseif tm.MethodType == "EPGPMC"
         y_cmap = countmap(y)
         m = tm.Param["M"]; bs = tm.Param["BatchSize"]; pointopt=!tm.Param["PointOptimization"]; autotu=tm.Param["Autotuning"];
@@ -198,7 +209,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
         .+1), m = $m, X_test = $X_test, Y_test= $(y_test.+1), max_iters=$iterations, indpoints= $pointopt, autotuning=$autotu)"
         end
         LogArrays = Matrix(rcopy(tm.Model[i][:log_table]))[:,2:end]
-        LogArrays[:,1] += tm.Param["time_init"]
+        LogArrays[:,1] = LogArrays[:,1] .+ tm.Param["time_init"]
     elseif tm.MethodType == "TTGPMC"
       stable = false
       while !stable

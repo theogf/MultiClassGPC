@@ -32,8 +32,8 @@ function XGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
   param["κ_s"] = 1.0;  param["τ_s"] = 40; #Parameters for learning rate of Stochastic gradient descent when ALR is not used
   param["ϵ"] = main_param["ϵ"]; param["Window"] = main_param["Window"]; #Convergence criteria (checking parameters norm variation on a window)
   param["ConvCriter"] = main_param["ConvCriter"]
-  param["Kernels"] = OMGP.ARDKernel([main_param["Θ"]],dim=main_param["nFeatures"]) #Kernel creation (standardized for now)
-  # param["Kernels"] = OMGP.RBFKernel(main_param["Θ"],variance=main_param["var"]) #Kernel creation (standardized for now)
+  # param["Kernels"] = OMGP.ARDKernel([main_param["Θ"]],dim=main_param["nFeatures"],variance=main_param["var"]) #Kernel creation (standardized for now)
+  param["Kernels"] = OMGP.RBFKernel(main_param["Θ"],variance=main_param["var"]) #Kernel creation (standardized for now)
   param["Verbose"] = if typeof(main_param["Verbose"]) == Bool; main_param["Verbose"] ? 2 : 0; else; param["Verbose"] = main_param["Verbose"]; end; #Verbose
   param["BatchSize"] = main_param["BatchSize"] #Number of points used for stochasticity
   param["FixedInitialization"] = main_param["FixedInitialization"]
