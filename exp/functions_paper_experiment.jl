@@ -6,7 +6,7 @@ Set of functions for efficient testing.
 
 
 # module TestFunctions
-  using DelimitedFiles, CSV
+  using DelimitedFiles#, CSV
   using PyCall
   using Distances, LinearAlgebra, Distributions,StatsBase
   # using MATLAB
@@ -39,7 +39,8 @@ Set of functions for efficient testing.
 
 function get_Dataset(datasetname::String)
     println("Getting dataset")
-    data = Matrix{Float64}(CSV.read("../data/"*datasetname*".csv",header=false))
+    data = readdlm("../data/"*datasetname*".csv",',')
+    # data = Matrix{Float64}(CSV.read("../data/"*datasetname*".csv",header=false))
     X = data[:,1:end-1]; y = floor.(Int64,data[:,end]);
     println("Dataset loaded")
     return (X,y,datasetname)
