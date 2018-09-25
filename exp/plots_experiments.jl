@@ -24,13 +24,13 @@ la = "results/AT_Experiment/"
 ls = "results/S_Experiment/"
 f = "../final_results/"
 loc = Dict{String,Dict{String,String}}()
-loc["iris"] =           Dict("SXGPMC"=>la,"SVGPMC"=>la,"EPGPMC"=>la,"TTGPC"=>c)
-loc["wine"] =           Dict("SXGPMC"=>l,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
-loc["glass"] =          Dict("SXGPMC"=>l,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
+loc["iris"] =           Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["wine"] =           Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["glass"] =          Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
 loc["vehicle"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["dna"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["satimage"] =          Dict("SXGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
-loc["segment"] =          Dict("SXGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
+loc["satimage"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["segment"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["mnist"] =          Dict("SXGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
 loc["Cod-rna"] =            Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
 loc["Covtype"] =            Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
@@ -113,7 +113,8 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     Results = Dict{String,Any}();
     println("Working on dataset $dataset")
     # colors=Dict("GPC"=>"b","SPGGPC"=>"r","LogReg"=>"y")
-    time_line = [1:1:99;100:10:999;1000:100:9999;10000:1000:40000]
+    time_line = [1:5:9;10:5:10;100:50:999;1000:1000:9999;10000:10000:50000]
+    time_line_EP = [1:1:99;100:10:999;1000:100:9999;10000:1000:40000]
     # Dict("SVGPMC"=>[1:1:99;100:10:999;1000:100:9999;10000:1000:20000],"SXGPMC"=>[1:1:99;100:10:999;1000:100:20000])
     p = Dict{String,Any}()
 

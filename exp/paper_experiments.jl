@@ -39,7 +39,7 @@ aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, S
 dataset = args["dataset"]
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
 MaxIter = args["maxiter"] #Maximum number of iterations for every algorithm
-iter_points= vcat(1:9,10:5:99,100:50:999,1000:1000:9999)
+iter_points= vcat(1:9,10:5:99,100:50:999,1e3:1e3:(1e4-1),1e4:1e4:1e5)
 
 (nSamples,nFeatures) = size(X_data);
 nFold = args["nFold"]; #Choose the number of folds
