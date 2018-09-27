@@ -31,7 +31,7 @@ loc["vehicle"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>c
 loc["dna"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["satimage"] =          Dict("SXGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
 # loc["satimage"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["segment"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["segment"] =          Dict("SXGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
 loc["mnist"] =          Dict("SXGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
 loc["fashion-mnist"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["Cod-rna"] =            Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)

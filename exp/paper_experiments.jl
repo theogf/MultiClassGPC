@@ -137,7 +137,7 @@ for (name,testmodel) in TestModels
         if testmodel.MethodName == "SVGPMC"
             testmodel.Param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
         elseif testmodel.MethodName == "SXGPMC"
-            println("SXGPMC : params : $([OMGP.KernelFunctions.getvalue(k.param) for k in testmodel.Model[i].kernel])\n and coeffs :  $([OMGP.KernelFunctions.getvalue(k.variance) for k in testmodel.Model[i].kernel])")
+            println("SXGPMC : params : $([OMGP.KernelFunctions.getvalue(k.lengthscales) for k in testmodel.Model[i].kernel])\n and coeffs :  $([OMGP.KernelFunctions.getvalue(k.variance) for k in testmodel.Model[i].kernel])")
         end
     end # of the loop over the folds
     ProcessResults(testmodel,iFold)
