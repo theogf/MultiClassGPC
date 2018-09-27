@@ -106,7 +106,7 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
 
     gamma_start = 1e-4;
     if Stochastic
-        gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-3;
+        gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
     else
         gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
     end

@@ -35,7 +35,7 @@ function XGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
   if main_param["Kernel"] == "rbf"
     param["Kernel"] = OMGP.RBFKernel(main_param["Θ"],variance=main_param["var"]) #Kernel creation (standardized for now)
   else
-    param["Kernel"] = OMGP.ARDKernel([main_param["Θ"]],dim=main_param["nFeatures"],variance=main_param["var"]) #Kernel creation (standardized for now)
+    param["Kernel"] = OMGP.RBFKernel([main_param["Θ"]],dim=main_param["nFeatures"],variance=main_param["var"]) #Kernel creation (standardized for now)
   end
   param["Verbose"] = if typeof(main_param["Verbose"]) == Bool; main_param["Verbose"] ? 2 : 0; else; param["Verbose"] = main_param["Verbose"]; end; #Verbose
   param["BatchSize"] = main_param["BatchSize"] #Number of points used for stochasticity
