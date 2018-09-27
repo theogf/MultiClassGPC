@@ -285,10 +285,10 @@ REPORT <- TRUE
 
       t_before <- proc.time()
       elbo0 <- computeEvidence(a)
-      cat("Iteration",  i, change, "damping:", damping,", logZ", elbo0, "\n")
       performance <- evaluate_test_performance(ret = ret, X_test = X_test, Y_test = Y_test, q = q)
 
       t_after <- proc.time()
+      cat("Epoch",  i, "Accuracy:", 1-(performance$err), " MeanL:", -(performance$neg_meanll), "\n")
 
       t0 <- t0 + (t_after - t_before)
       value_log[nrow(value_log)+1,] <-list(i,proc.time()[1]-t0[1],1-(performance$err),-(performance$neg_meanll),-(performance$neg_medianll),elbo0)

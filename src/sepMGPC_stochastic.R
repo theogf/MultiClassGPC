@@ -714,7 +714,6 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
 	            if (cont %in% c(seq(1,9),seq(10,99,5),seq(100,999,50),seq(1000,100000,1000))) {
 
                 # Reconstruct structure
-                cat("Epoch",  cont, "Avg evidence:", avg_evidence / nBatches, "\n")
                 a$f1Hat <- f1Hat
                 a$X <- X
                 a$Y <- Y
@@ -728,6 +727,7 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
                 elbo0 <- mini_elbo*nBatches
                 t_after <- proc.time()
 
+								cat("Epoch",  cont, "Accuracy:", 1-(performance$err), " MeanL:", -(performance$neg_meanll), "\n")
                 t0 <- t0 + (t_after - t_before)
                 value_log[nrow(value_log)+1,] <- list(cont,proc.time()[1]-t0[1],1-(performance$err),-(performance$neg_meanll),-(performance$neg_medll),elbo0)
                 # write.table(t(c(performance$err, performance$neg_ll, proc.time() - t0)),
