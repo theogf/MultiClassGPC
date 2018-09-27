@@ -278,7 +278,7 @@ REPORT <- TRUE
     q <- reconstructPosterior(a)
 
 
-    if (i %% max(1,10^(floor(log10(i/10)))) == 0) {
+    if (i %in% c(seq(1,9),seq(10,99,5),seq(100,999,50),seq(1000,100000,1000))) {
 
       ret <- 	list(f1Hat = a$f1Hat, gMGPCinfo = a$gMGPCinfo,
                    n = n, nK = nK, Y = Y, a = a, levelsY = levelsY)

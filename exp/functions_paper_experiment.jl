@@ -380,7 +380,7 @@ function WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
 end
 
 function initial_lengthscale(X)
-    D = pairwise(Euclidean(),X)
+    D = pairwise(SqEuclidean(),X')
     return median([D[i,j] for i in 2:size(D,1) for j in 1:(i-1)])
 end
 

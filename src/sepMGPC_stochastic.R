@@ -711,7 +711,7 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
             q <- reconstructPosterior(a)
 
 
-            if (cont %% max(1,10^(floor(log10(cont/10)))) == 0) {
+	            if (cont %in% c(seq(1,9),seq(10,99,5),seq(100,999,50),seq(1000,100000,1000))) {
 
                 # Reconstruct structure
                 cat("Epoch",  cont, "Avg evidence:", avg_evidence / nBatches, "\n")
