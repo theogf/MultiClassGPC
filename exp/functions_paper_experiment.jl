@@ -46,6 +46,15 @@ function get_Dataset(datasetname::String)
     return (X,y,datasetname)
 end
 
+function initial_lengthscale(X)
+    if size(X,1) > 10000
+        D = pairwise(SqEuclidean(),X[sample(1:size(X,1),10000,replace=false),:]')
+    else
+        D = pairwise(SqEuclidean(),X')
+    end
+
+    return median([D[i,j] for i in 2:size(D,1) for j in 1:(i-1)])
+end
 #Datatype for containing the model, its results and its parameters
 mutable struct TestingModel
   MethodName::String #Name of the method
@@ -382,10 +391,7 @@ function WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
     end
 end
 
-function initial_lengthscale(X)
-    D = pairwise(SqEuclidean(),X')
-    return median([D[i,j] for i in 2:size(D,1) for j in 1:(i-1)])
-end
+
 
 function PlotResults(TestModels)
     nModels=length(TestModels)
