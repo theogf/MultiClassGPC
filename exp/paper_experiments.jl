@@ -56,7 +56,7 @@ main_param["nFeatures"] = nFeatures
 main_param["nSamples"] = nSamples
 main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["maxIter"]=MaxIter
-main_param["γ"] = 1e-2
+main_param["γ"] = 1e-3
 main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "ard"
 l = initial_lengthscale(X_data)

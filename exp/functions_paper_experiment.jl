@@ -170,8 +170,8 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
             if in(iter,iter_points)
                 a = Vector{Any}(undef,7)
                 a[1] = time_ns()
-                y_p = OMGP.multiclasspredict(model,X_test,true)
-                # y_p = OMGP.multiclasspredictproba(model,X_test,false)
+                # y_p = OMGP.multiclasspredict(model,X_test,true)
+                y_p = OMGP.multiclasspredictproba(model,X_test,false)
                 # y_exp = OMGP.multiclasssoftmax(model,X_test,false)
                 a[2] = TestAccuracy(model,y_test,y_p)
                 loglike = LogLikelihood(model,y_test,y_p)
@@ -179,8 +179,10 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
                 a[5] = -OMGP.ELBO(model)
+
                 a[7] = 0#[OMGP.KernelFunctions.getvalue(k.param) for k in model.kernel]
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
+                # println("Variances :", [OMGP.getvalue(k.variance) for k in model.kernel])
                 a[6] = time_ns()
                 push!(LogArrays,a)
             end
