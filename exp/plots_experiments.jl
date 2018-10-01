@@ -29,10 +29,17 @@ loc["wine"] =           Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
 loc["glass"] =          Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
 loc["vehicle"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["dna"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["satimage"] =          Dict("SXGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
-# loc["satimage"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["segment"] =          Dict("SXGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
-loc["mnist"] =          Dict("SXGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
+# loc["satimage"] =          Dict("SXGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
+loc["satimage"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["segment"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["mnist"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["acoustic"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["covtype"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["combined"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["seismic"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["sensorless"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["cpu_act"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["shuttle"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["fashion-mnist"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["Cod-rna"] =            Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
 loc["Covtype"] =            Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
@@ -241,7 +248,7 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     tight_layout()
     subplots_adjust(top=0.88)
     if writing
-        savefig("../../Plots/"*(metric=="Final" ? "Final" : "")*"Convergence_vs_"*(time ? "time" : "iterations")*"_on_"*dataset*".png")
+        savefig("../plots/"*(metric=="Final" ? "Final" : "")*"Convergence_vs_"*(time ? "time" : "iterations")*"_on_"*dataset*".png")
         close()
     end
 end
@@ -250,7 +257,10 @@ end
 sizes = Dict("aXa"=>(36974,123),"Bank_marketing"=>(45211,43),"Click_Prediction"=>(399482,12),"Cod-rna"=>(343564,8),"Covtype"=>(581012,54),
                     "Diabetis"=>(768,8),"Electricity"=>(45312,8),"German"=>(1000,20),"HIGGS"=>(11000000,28),"Ijcnn1"=>(141691,22),"Mnist"=>(70000,780),"Poker"=>(1025010,10),
                     "Protein"=>(24837,357),"Shuttle"=>(58000,9),"SUSY"=>(5000000,18),"Vehicle"=>(98528,100),"wXa"=>(34780,300))
-DatasetNameCorrection = Dict("iris"=>"Iris","wine"=>"Wine","glass"=>"Glass","vehicle"=>"Vehicle", "segment"=>"Segment", "dna"=>"DNA","satimage"=>"SatImage","mnist"=>"MNIST",
+DatasetNameCorrection = Dict("iris"=>"Iris","wine"=>"Wine","glass"=>"Glass","vehicle"=>"Vehicle", "segment"=>"Segment",
+                             "dna"=>"DNA","satimage"=>"SatImage","mnist"=>"MNIST","vehicle"=>"Vehicle","combined"=>"Combined",
+                             "sensorless"=>"Sensorless","acoustic"=>"Acoustic","covtype"=>"CovType","cpu_act"=>"CPU Act",
+                             "seismic"=>"Seismic","shuttle"=>"Shuttle",
                             "Cod-rna"=>"Cod RNA", "Covtype"=>"Cov Type", "Diabetis"=>"Diabetis","Electricity"=>"Electricity",
                             "German"=>"German","HIGGS"=>"Higgs","Ijcnn1"=>"IJCNN","Mnist"=>"Mnist","Shuttle"=>"Shuttle","SUSY"=>"SUSY","Vehicle"=>"Vehicle","wXa"=>"wXa")
 function Table()
@@ -259,7 +269,7 @@ function Table()
     MetricNames = Dict("Error"=>3,"NLL"=>5,"Time"=>1)
     MetricsOrder = ["Error","NLL","Time"]
     full_table = Array{String,1}()
-    first_line = String("\\begin{table}[h!]\\centering
+    first_line = String("\\begin{table}[h!]\\centeringS
 \\begin{adjustbox}{max width=\\columnwidth}
 \\footnotesize
 \\begin{tabular}{|l|l|l|l|l|}
