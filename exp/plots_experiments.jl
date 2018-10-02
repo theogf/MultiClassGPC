@@ -1,4 +1,4 @@
-using PyPlot
+using PyPlot,Statistics
 using Formatting
 using PyCall
 plt[:style][:use]("seaborn-colorblind")
@@ -6,12 +6,11 @@ plt[:style][:use]("seaborn-colorblind")
 if VERSION >= v"0.7.0-"
     using DelimitedFiles
 end
-NC =  Dict("EPGPMC"=>"EPGPMC","TTGPC"=>"Tensor Train GPC", "LogReg"=>"Linear Model",
-"SVGPMC"=>"SVGPMC","SXGPMC"=>"X-GPC","Accuracy"=>"Avg. Test Error",
-"MedianL"=>"Avg. Median Neg.\n Test Log-Likelihood","MeanL"=>"Avg. Mean Neg.\n Test Log-Likelihood")
-colors=Dict("SVGPMC"=>"blue","SXGPMC"=>"red","LogReg"=>"yellow","EPGPMC"=>"green", "TTGPC"=>"black")
+NC =  Dict("EPGPMC"=>"EP-MGPC","TTGPC"=>"Tensor Train GPC", "LogReg"=>"Linear Model",
+"SVGPMC"=>"SV-MGPC","SXGPMC"=>"X-MGPC","Accuracy"=>"Avg. Test Error","SXGPMCInd"=>"Independent Priors","SXGPMCShared"=>"Common Prior",
+"MedianL"=>"Avg. Median Neg.\n Test Log-Likelihood","MeanL"=>"Avg. Neg. Test\n Log-Likelihood")
+colors=Dict("SVGPMC"=>"blue","SXGPMC"=>"red","LogReg"=>"yellow","EPGPMC"=>"green", "TTGPC"=>"black","SXGPMCInd"=>"blue","SXGPMCShared"=>"red")
 linestyles=Dict(16=>":",32=>"--",64=>"-.",128=>"-")
-markers=Dict(16=>"",32=>"o",64=>"x",128=>"+")
 # linestyles=Dict(4=>"-",8=>":",10=>"-",16=>"-.",32=>"--",50=>":",64=>"-.",100=>"-.",128=>"-",200=>"--",256=>"--")
 metrics = Dict("Accuracy"=>3,"MeanL"=>5,"MedianL"=>7,"ELBO"=>9)
 
@@ -70,43 +69,88 @@ function DataConversion(array,name)
     end
 end
 
-function InducingPointsComparison(metric,MPoints=[16,32,64,128];step=1)
-    dataset="Shuttle"
-    figure("Comparison of inducing points accuracy and time",figsize=(16,8)); clf();
-    p = Dict("SVGPMC"=>Array{Any,1}(),"SXGPMC"=>Array{Any,1}(),"EPGPMC"=>Array{Any,1}())
-    lab = Dict("SVGPMC"=>Array{Any,1}(),"SXGPMC"=>Array{Any,1}(),"EPGPMC"=>Array{Any,1}())
-    for M in MPoints
-        Results = Dict{String,Any}()
-        Results["SXGPMC"] = readdlm("data_M$M/ConvergenceExperiment_AT/$(dataset)Dataset/Results_SXGPMC.txt")
-        Results["SVGPMC"] = readdlm("data_M$M/ConvergenceExperiment_AT/$(dataset)Dataset/Results_SVGPMC.txt")
-        Results["EPGPMC"] = readdlm("data_M$M/ConvergenceExperiment_AT/$(dataset)Dataset/Results_EPGPMC.txt")
-        Results["EPGPMC"][:,1] += Float64(readdlm("results/time_correction"*"/$(dataset)_M$(M)")[1])
-        for (name,res) in Results
-            res[:,metrics[metric]] = DataConversion(res[:,metrics[metric]],metric)
-            push!(lab[name],NC[name]*" M=$M")
-            new_p,=semilogx(res[1:step:end,1],SmoothIt(res[1:step:end,metrics[metric]],window=3),markersize=gmarkersize,color=colors[name],marker=markers[M],linewidth=gwidth,linestyle=linestyles[M],label=NC[name]*" M=$M")
-            push!(p[name],new_p)
+
+markers=Dict(21=>"o",42=>"o",104=>"o",208=>"o",416=>"o",1040=>"o",2079=>"o")
+markers=Dict(8=>"o",15=>"o",38=>"o",76=>"o",152=>"o",381=>"o",761=>"o")
+linestyles=Dict(21=>"-",42=>"-",104=>"-",208=>"-",416=>"-",1040=>"-",2079=>"-")
+linestyles=Dict(8=>"-",15=>"-",38=>"-",76=>"-",152=>"-",381=>"-",761=>"-")
+function DoubleAxisPlot(metric,MPoints=[8,15,38,76,152,381])
+    scale= 2.0
+    dataset="vehicle"
+    strat = ["Ind","Shared"]
+    Nm = length(MPoints)
+    percent = [1,2,5,10,20,50,100]
+    p = Dict("SXGPMCInd"=>Array{Float64,2}(undef,length(MPoints),2),"SXGPMCShared"=>Array{Float64,2}(undef,length(MPoints),2))
+    for T in strat
+        for (i,M) in enumerate(MPoints)
+            r = readdlm("../cluster/results_M$(M)_$(T)/AT_Experiment/$(dataset)Dataset/Results_SXGPMC.txt")
+            p["SXGPMC"*T][i,:] = r[end,[metrics[metric],1]]
         end
+        p["SXGPMC"*T][:,1]= DataConversion(p["SXGPMC"*T][:,1],metric)
     end
 
+    fig, ax1 = plt[:subplots]()
+    fig[:set_size_inches](16,8)
+    p1 = ax1[:plot](percent[1:Nm],p["SXGPMCInd"][:,1],label="",color="red",marker="x",linestyle="-",linewidth=2.0*scale,markersize=2.0*scale)
+    p2 = ax1[:plot](percent[1:Nm],p["SXGPMCShared"][:,1],label="",color="blue",marker="o",linestyle="-",linewidth=2.0*scale,markersize=2.0*scale)
+    ax1[:set_xlabel]("# inducing points (in % of # training points)",fontsize=20.0*scale)
+    ax1[:set_ylabel](NC[metric]*" (solid line)",fontsize=20.0*scale)
+    ax1[:tick_params]('y',fontsize=15.0*scale)
+    xticks([1,5,10,20,50],["1","5","10","20","50"],fontsize=15.0*scale)
+    yticks(fontsize=15.0*scale)
+    ax2 = ax1[:twinx]()
 
+    p4 = ax2[:semilogy](percent[1:Nm],p["SXGPMCInd"][:,2],color="red",marker="x",linestyle="--",linewidth=2.0*scale,markersize=2.0*scale)
+    p3 = ax2[:semilogy](percent[1:Nm],p["SXGPMCShared"][:,2],color="blue",marker="o",linestyle="--",linewidth=2.0*scale,markersize=2.0*scale)
+    ax2[:set_ylabel]("Training time in Seconds\n(dashed line)",fontsize=18.0*scale)
+    ax2[:tick_params]('y',fontsize=20.0*scale)
+    yticks([10.0,100.0,1000.0],fontsize=15.0*scale)
+    ax1[:legend](["Independent Priors","Shared Prior"],fontsize=20.0*scale,loc=7,markerscale=2.0*scale)
+    fig[:tight_layout]()
+    plt[:show]()
+    savefig("../plots/$(dataset)DoublePlot.png")
+    return fig
+end
+
+true
+
+
+function InducingPointsComparison(metric,MPoints=[8,15,38,76,152,381];step=1)
+# function InducingPointsComparison(metric,MPoints=[21,42,104,208,416,1040,2079];step=1)
+    dataset="vehicle"
+    figure("Comparison of inducing points accuracy and time",figsize=(16,8)); clf();
+    p = Dict("SXGPMCInd"=>Array{Any,1}(),"SXGPMCShared"=>Array{Any,1}())
+    lab = Dict("SXGPMCInd"=>Array{Any,1}(),"SXGPMCShared"=>Array{Any,1}())
+    strat = ["Ind","Shared"]
+    for T in strat
+        for M in MPoints
+            Results = Dict{String,Any}()
+            Results["SXGPMC"*T] = readdlm("../cluster/results_M$(M)_$(T)/AT_Experiment/$(dataset)Dataset/Results_SXGPMC.txt")
+            for (name,res) in Results
+                res[:,metrics[metric]] = DataConversion(res[:,metrics[metric]],metric)
+                push!(lab[name],NC[name]*" M=$M")
+                new_p,=semilogx(res[1:step:end,1],SmoothIt(res[1:step:end,metrics[metric]],window=1),markersize=gmarkersize,color=colors[name],marker=markers[M],linewidth=gwidth,linestyle=linestyles[M],label=NC[name]*" M=$M")
+                push!(p[name],new_p)
+            end
+        end
+    end
     xlabel("Training Time in Seconds",fontsize=20.0)
     xticks(fontsize=18.0)
     ylabel(NC[metric],fontsize=20.0)
     yticks(fontsize=18.0)
     title(dataset,fontsize=24.0,fontweight="semibold")
 
-    legend([p["SXGPMC"];p["SVGPMC"];p["EPGPMC"]],[lab["SXGPMC"];lab["SVGPMC"];lab["EPGPMC"]],fontsize=18.0)
-    xlim([0.03,4500])
-    ylim([-0.01,0.15])
+    legend([p["SXGPMCInd"];p["SXGPMCShared"]],[lab["SXGPMCInd"];lab["SXGPMCShared"]],fontsize=18.0)
+    # xlim([0.03,4500])
+    # ylim([-0.01,0.15])
     tight_layout()
-    savefig("../../Plots/$(dataset)InducingPointsPlot.png")
+    savefig("../plots/$(dataset)InducingPointsPlot.png")
 end
 
 function PlotAll()
     file_list = readdlm("file_list_finished")
     for file in file_list
-        PlotMetricvsTime(file,"Final",time=true,writing=true,corrections=true)
+        PlotMetricvsTime(file,"Final",time=true,writing=true,corrections=false)
     end
 end
 

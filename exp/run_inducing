@@ -1,16 +1,13 @@
 #!/bin/bash
 
-files=(`cat ${1}`)
+
 ms=(`cat ${2}`)
 prefix="IndPoints"
 echo $files
 echo $ms
 for m in "${ms[@]}"
   do
-    for i in "${files[@]}"
-      do
-	       screen -S "${m}${prefix}${i}" -d -m
-         screen -r "${m}${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 paper_experiments.jl $i ---XGP -A -I 1000 -M $m ^M"
-	       echo "Created screen ${m}${prefix}${i} and ran experiment"
-       done
+     screen -S "${m}${prefix}${i}" -d -m
+     screen -r "${m}${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 paper_experiments.jl ${1} --XGP -A -I 1000 -M $m ^M"
+     echo "Created screen ${m}${prefix}${i} and ran experiment"
   done

@@ -12,7 +12,7 @@ function convert_target!(data;end_pos=true)
     return data
 end
 
-function normalize!(data;end_pos=true)
+function normalizedata!(data;end_pos=true)
     if end_pos
         data[:,1] = std(data[:,1]) != 0 ?
         zscore(Float64.(data[:,1])) :
@@ -39,7 +39,7 @@ function shuffle_data!(data)
 end
 
 function full_treatment(data,end_pos=true)
-    data = normalize!(data,end_pos=end_pos)
+    data = normalizedata!(data,end_pos=end_pos)
     data = convert_target!(data,end_pos=end_pos)
     data = shuffle_data!(data)
     return data

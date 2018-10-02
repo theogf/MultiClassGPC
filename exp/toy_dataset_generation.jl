@@ -21,6 +21,13 @@ for i in 1:N
     X[i,3:end] = rand(Normal(),D-2)
 end
 
+function sample_gaussian_process(X,noise)
+    N = size(X,1)
+    K = KernelFunctions.kernelmatrix(X,kernel)+noise*Diagonal{Float64}(I,N)
+    return rand(MvNormal(zeros(N),K))
+end
+
+
 p = plot()
 [plot!(p,X[y.==i,1],X[y.==i,2],t=:scatter) for i in 1:3]
 plot(p)
