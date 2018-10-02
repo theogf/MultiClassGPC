@@ -66,10 +66,10 @@ function TreatTime(init_time,before_comp,after_comp)
 end
 
 
-# (X,y,dataset) = get_Dataset("letter")
-# X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.1)
-(X,y,dataset) = get_Dataset("omniglot")
-(X_test,y_test,dataset) = get_Dataset("omniglot_test")
+(X,y,dataset) = get_Dataset("letter")
+X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.1)
+# (X,y,dataset) = get_Dataset("omniglot")
+# (X_test,y_test,dataset) = get_Dataset("omniglot_test")
 
 
 l=initial_lengthscale(X)
@@ -84,22 +84,22 @@ doFull = true; doStoch = true; doAT = true;
 
 
 # if doFull
-# global LogArrays = Array{Any,1}()
-# println("Starting training without class subsampling")
-# global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,VerboseLevel=3,kernel=kernel,m=M,Autotuning=doAT,AutotuningFrequency=1,Stochastic=true,batchsize=bsize,IndependentGPs=false)
-#
-# global init_tfull = time_ns()
-# smodel.train(iterations=50,callback=LogIt)
-# y_spred = smodel.predict(X_test)[1]
-# println("Sparse predictions computed")
-# sparse_score=0
-# for (i,pred) in enumerate(y_spred)
-#     if pred == y_test[i]
-#         global sparse_score += 1
-#     end
-# end
-# println("Sparse model Accuracy is $(sparse_score/length(y_test))")#" in $t_sparse s")
-# global LogFull = deepcopy(LogArrays)
+global LogArrays = Array{Any,1}()
+println("Starting training without class subsampling")
+global smodel = OMGP.SparseMultiClass(X,y,KStochastic=false,VerboseLevel=3,kernel=kernel,m=M,Autotuning=doAT,AutotuningFrequency=1,Stochastic=true,batchsize=bsize,IndependentGPs=false)
+
+global init_tfull = time_ns()
+smodel.train(iterations=50,callback=LogIt)
+y_spred = smodel.predict(X_test)[1]
+println("Sparse predictions computed")
+sparse_score=0
+for (i,pred) in enumerate(y_spred)
+    if pred == y_test[i]
+        global sparse_score += 1
+    end
+end
+println("Sparse model Accuracy is $(sparse_score/length(y_test))")#" in $t_sparse s")
+global LogFull = deepcopy(LogArrays)
 # end
 
 
@@ -134,10 +134,10 @@ Accstoch = LogStoch[2,:]
 MeanLstoch = LogStoch[3,:]
 
 
-# using Plots
-# pyplot()
-# # p1 = plot(Tfull,Accfull)
-# p1 = plot(Tstoch,Accstoch)
-# # p2 = plot(Tfull,MeanLfull)
-# p2 = plot(Tstoch,MeanLstoch)
-# plot(p1,p2)
+using Plots
+pyplot()
+p1 = plot(Tstoch,Accstoch)
+p1 = plot!(Tfull,Accfull)
+p2 = plot(Tstoch,MeanLstoch)
+p2 = plot!(Tfull,MeanLfull)
+plot(p1,p2)
