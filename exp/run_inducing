@@ -3,11 +3,12 @@
 
 ms=(`cat ${2}`)
 prefix="IndPoints"
-echo $files
 echo $ms
 for m in "${ms[@]}"
   do
-     screen -S "${m}${prefix}${i}" -d -m
-     screen -r "${m}${prefix}${i}" -p 0 -X stuff "~/Julia/bin/julia -p 1 paper_experiments.jl ${1} --XGP -A -I 1000 -M $m ^M"
-     echo "Created screen ${m}${prefix}${i} and ran experiment"
+     screen -S "${prefix}${1}${m}" -d -m
+     sleep 0.1
+     screen -r "${prefix}${1}${m}" -p 0 -X stuff "export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 ^M"
+     screen -r "${prefix}${1}${m}" -p 0 -X stuff "~/Julia/bin/julia -p 1 paper_experiments.jl ${1} --XGP -A -I 1000 -M $m ^M"
+     echo "Created screen ${prefix}${1}${m} and ran experiment"
   done

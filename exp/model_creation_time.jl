@@ -8,16 +8,13 @@ include("get_arguments.jl")
 #Compare XGPMC, BSVM, SVGPMC and others
 
 #Methods and scores to test
-doSXGPMC = args["XGP"] #Sparse XGPMC (sparsity)
-doEPGPMC = args["EPGP"]
-doSVGPMC = args["SVGP"] #Sparse Variational GPMC (Hensmann)
-doARMC = args["AR"]
-doTTGPMC = args["TTGP"]
+doSXGPMC = true #Sparse XGPMC (sparsity)
+doSVGPMC = true #Sparse Variational GPMC (Hensmann)
 
 doBXGPMC = false
-doStochastic = args["stochastic"]
-doAutotuning = args["autotuning"]
-doPointOptimization = args["point-optimization"]
+doStochastic = true
+doAutotuning = true
+doPointOptimization = false
 
 include("functions_paper_experiment.jl")
 
@@ -38,7 +35,7 @@ aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, S
 # dataset = "mnist"
 dataset = args["dataset"]
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
-MaxIter = args["maxiter"] #Maximum number of iterations for every algorithm
+MaxIter = 10 #Maximum number of iterations for every algorithm
 iter_points= vcat(1:9,10:5:99,100:50:999,1e3:1e3:(1e4-1),1e4:1e4:1e5)
 
 (nSamples,nFeatures) = size(X_data);
@@ -57,7 +54,7 @@ main_param["nSamples"] = nSamples
 main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["maxIter"]=MaxIter
 main_param["γ"] = 1e-3
-main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
+main_param["M"] = 200 #Number of inducing points
 main_param["Kernel"] = "ard"
 l = initial_lengthscale(X_data)
 main_param["Θ"] = sqrt(l) #initial Hyperparameter of the kernel
@@ -69,19 +66,15 @@ main_param["Window"] = 10
 main_param["Autotuning"] = doAutotuning
 main_param["PointOptimization"] = doPointOptimization
 #All Parameters
-BXGPMCParam = XGPMCParameters(main_param=main_param,independent=true)
 SXGPMCParam = XGPMCParameters(Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param,independent=true)
 SVGPMCParam = SVGPMCParameters(Stochastic=doStochastic,main_param=main_param)
-EPGPMCParam = EPGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 
 
 #Set of all models
 TestModels = Dict{String,TestingModel}()
 
-if doBXGPMC; TestModels["BXGPMC"] = TestingModel("BXGPMC",DatasetName,ExperimentName,"BXGPMC",BXGPMCParam); end;
 if doSXGPMC; TestModels["SXGPMC"] = TestingModel("SXGPMC",DatasetName,ExperimentName,"SXGPMC",SXGPMCParam); end;
 if doSVGPMC;   TestModels["SVGPMC"]   = TestingModel("SVGPMC",DatasetName,ExperimentName,"SVGPMC",SVGPMCParam);      end;
-if doEPGPMC; TestModels["EPGPMC"] = TestingModel("EPGPMC",DatasetName,ExperimentName,"EPGPMC",EPGPMCParam); end;
 
 writing_order = ["Time","Accuracy","MeanL","MedianL","ELBO"]
 
@@ -92,13 +85,8 @@ print(" max of $MaxIter iterations\n")
 
 for (name,testmodel) in TestModels
     println("Running $(testmodel.MethodName) on $(testmodel.DatasetName) dataset")
-    #Initialize the results storage
+    tmod = zeros(iFold)
     testmodel.Model = Array{Any}(undef,nFold)
-    testmodel.Results["Time"] = Vector{Vector{Float64}}(undef,nFold);
-    testmodel.Results["Accuracy"] = Vector{Vector{Float64}}(undef,nFold);
-    testmodel.Results["MeanL"] = Vector{Vector{Float64}}(undef,nFold);
-    testmodel.Results["MedianL"] = Vector{Vector{Float64}}(undef,nFold);
-    testmodel.Results["ELBO"] = Vector{Vector{Float64}}(undef,nFold);
     for i in 1:iFold #Run over iFold folds of the data
         if ShowIntResults
             println("#### Fold number $i/$nFold ####")
@@ -111,43 +99,15 @@ for (name,testmodel) in TestModels
         end
         X = X_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples)),:]
         y = y_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples))]
-        CreateModel!(testmodel,i,X,y)
         init_t = time_ns()
-        if testmodel.MethodType == "EPGPMC"
-            global LogArrays=copy(transpose(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)))
-            testmodel.Results["Time"][i] = LogArrays[1,:]
-        else
-            global LogArrays= hcat(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)...)
-            testmodel.Results["Time"][i] = TreatTime(init_t,LogArrays[1,:],LogArrays[6,:])
-            # testmodel.Results["Time"][i] = a .+ testmodel.Param["time_init"]
-        end
-        testmodel.Results["Accuracy"][i] = LogArrays[2,:]
-        testmodel.Results["MeanL"][i] = LogArrays[3,:]
-        testmodel.Results["MedianL"][i] = LogArrays[4,:]
-        testmodel.Results["ELBO"][i] = LogArrays[5,:]
-        if ShowIntResults
-            println("$(testmodel.MethodName) : Time  = $((time_ns()-init_t)*1e-9)s, accuracy : $(LogArrays[2,end])")
-        end
-        if doWrite && doSaveLastState
-            top_fold = "results";
-            if !isdir(top_fold); mkdir(top_fold); end;
-            WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
-        end
-        #Reset the kernel
-        if testmodel.MethodName == "SVGPMC"
-            testmodel.Param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
-        elseif testmodel.MethodName == "SXGPMC"
-            println("SXGPMC : params : $([OMGP.KernelFunctions.getvalue(k.lengthscales) for k in testmodel.Model[i].kernel])\n and coeffs :  $([OMGP.KernelFunctions.getvalue(k.variance) for k in testmodel.Model[i].kernel])")
-        end
+        CreateModel!(testmodel,i,X,y)
+        final_t = time_ns()
+        tmod[i] = (final_t-init_t)/1e9
     end # of the loop over the folds
-    ProcessResults(testmodel,iFold)
-    println(size(testmodel.Results["Processed"]))
-    if doWrite
-        top_fold = "results";
-        if !isdir(top_fold); mkdir(top_fold); end;
-        WriteResults(testmodel,top_fold,writing_order) #Write the results in an adapted format into a folder
+    if iFold > 1
+        tmod[2] = tmod[1]
     end
+    f_t = mean(tmod)
+    writedlm("results/time_correction/$(testmodel.DatasetName)$(testmodel.MethodName).txt",f_t)
+
 end #Loop over the models
-if doPlot
-    PlotResults(TestModels)
-end

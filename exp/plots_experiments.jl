@@ -6,8 +6,8 @@ plt[:style][:use]("seaborn-colorblind")
 if VERSION >= v"0.7.0-"
     using DelimitedFiles
 end
-NC =  Dict("EPGPMC"=>"EP-MGPC","TTGPC"=>"Tensor Train GPC", "LogReg"=>"Linear Model",
-"SVGPMC"=>"SV-MGPC","SXGPMC"=>"X-MGPC","Accuracy"=>"Avg. Test Error","SXGPMCInd"=>"Independent Priors","SXGPMCShared"=>"Common Prior",
+NC =  Dict("EPGPMC"=>"SEP-MGPC","TTGPC"=>"Tensor Train GPC", "LogReg"=>"Linear Model",
+"SVGPMC"=>"SVI-MGPC","SXGPMC"=>"SC-MGPC","Accuracy"=>"Avg. Test Error","SXGPMCInd"=>"Independent Priors","SXGPMCShared"=>"Common Prior",
 "MedianL"=>"Avg. Median Neg.\n Test Log-Likelihood","MeanL"=>"Avg. Neg. Test\n Log-Likelihood")
 colors=Dict("SVGPMC"=>"blue","SXGPMC"=>"red","LogReg"=>"yellow","EPGPMC"=>"green", "TTGPC"=>"black","SXGPMCInd"=>"blue","SXGPMCShared"=>"red")
 linestyles=Dict(16=>":",32=>"--",64=>"-.",128=>"-")
@@ -74,12 +74,12 @@ markers=Dict(21=>"o",42=>"o",104=>"o",208=>"o",416=>"o",1040=>"o",2079=>"o")
 markers=Dict(8=>"o",15=>"o",38=>"o",76=>"o",152=>"o",381=>"o",761=>"o")
 linestyles=Dict(21=>"-",42=>"-",104=>"-",208=>"-",416=>"-",1040=>"-",2079=>"-")
 linestyles=Dict(8=>"-",15=>"-",38=>"-",76=>"-",152=>"-",381=>"-",761=>"-")
-function DoubleAxisPlot(metric,MPoints=[8,15,38,76,152,381])
+function DoubleAxisPlot(metric,MPoints=[5,10,20,50,75,100,150,200,300,400])
     scale= 2.0
-    dataset="vehicle"
+    dataset="segment"
     strat = ["Ind","Shared"]
     Nm = length(MPoints)
-    percent = [1,2,5,10,20,50,100]
+    percent = [20,50,75,100,150,200,300,400]
     p = Dict("SXGPMCInd"=>Array{Float64,2}(undef,length(MPoints),2),"SXGPMCShared"=>Array{Float64,2}(undef,length(MPoints),2))
     for T in strat
         for (i,M) in enumerate(MPoints)
@@ -91,21 +91,21 @@ function DoubleAxisPlot(metric,MPoints=[8,15,38,76,152,381])
 
     fig, ax1 = plt[:subplots]()
     fig[:set_size_inches](16,8)
-    p1 = ax1[:plot](percent[1:Nm],p["SXGPMCInd"][:,1],label="",color="red",marker="x",linestyle="-",linewidth=2.0*scale,markersize=2.0*scale)
-    p2 = ax1[:plot](percent[1:Nm],p["SXGPMCShared"][:,1],label="",color="blue",marker="o",linestyle="-",linewidth=2.0*scale,markersize=2.0*scale)
-    ax1[:set_xlabel]("# inducing points (in % of # training points)",fontsize=20.0*scale)
-    ax1[:set_ylabel](NC[metric]*" (solid line)",fontsize=20.0*scale)
+    p1 = ax1[:plot](MPoints[1:Nm],p["SXGPMCInd"][:,1],label="",color="red",marker="x",linestyle="-",linewidth=2.0*scale,markersize=4.0*scale)
+    p2 = ax1[:plot](MPoints[1:Nm],p["SXGPMCShared"][:,1],label="",color="blue",marker="o",linestyle="-",linewidth=2.0*scale,markersize=4.0*scale)
+    ax1[:set_xlabel]("# inducing points",fontsize=20.0*scale)
+    ax1[:set_ylabel](NC[metric]*"\n(solid line)",fontsize=20.0*scale)
     ax1[:tick_params]('y',fontsize=15.0*scale)
-    xticks([1,5,10,20,50],["1","5","10","20","50"],fontsize=15.0*scale)
+    xticks(percent,["$v" for v in percent],fontsize=15.0*scale)
     yticks(fontsize=15.0*scale)
     ax2 = ax1[:twinx]()
 
-    p4 = ax2[:semilogy](percent[1:Nm],p["SXGPMCInd"][:,2],color="red",marker="x",linestyle="--",linewidth=2.0*scale,markersize=2.0*scale)
-    p3 = ax2[:semilogy](percent[1:Nm],p["SXGPMCShared"][:,2],color="blue",marker="o",linestyle="--",linewidth=2.0*scale,markersize=2.0*scale)
+    p4 = ax2[:semilogy](MPoints[1:Nm],p["SXGPMCInd"][:,2],color="red",marker="x",linestyle="--",linewidth=2.0*scale,markersize=4.0*scale)
+    p3 = ax2[:semilogy](MPoints[1:Nm],p["SXGPMCShared"][:,2],color="blue",marker="o",linestyle="--",linewidth=2.0*scale,markersize=4.0*scale)
     ax2[:set_ylabel]("Training time in Seconds\n(dashed line)",fontsize=18.0*scale)
     ax2[:tick_params]('y',fontsize=20.0*scale)
     yticks([10.0,100.0,1000.0],fontsize=15.0*scale)
-    ax1[:legend](["Independent Priors","Shared Prior"],fontsize=20.0*scale,loc=7,markerscale=2.0*scale)
+    ax1[:legend](["Ind. Hyperparameters","Shared Hyperparameters"],fontsize=17.0*scale,loc=7,markerscale=2.0*scale)
     fig[:tight_layout]()
     plt[:show]()
     savefig("../plots/$(dataset)DoublePlot.png")
@@ -178,7 +178,12 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     Results["SVGPMC"] = readdlm(loc[dataset]["SVGPMC"]*dataset*"Dataset/Results_SVGPMC.txt")
     Results["SXGPMC"] = readdlm(loc[dataset]["SXGPMC"]*dataset*"Dataset/Results_SXGPMC.txt")
     Results["EPGPMC"] = readdlm(loc[dataset]["EPGPMC"]*dataset*"Dataset/Results_EPGPMC.txt")
-    # Results["EPGPMC"][:,1] = Results["EPGPMC"][:,1] + Float64(readdlm(loc[dataset]["EPGPMC"]*"/../time_correction/"*dataset)[1])
+    if !in(dataset,["iris","glass","wine"])
+        Results["SVGPMC"][:,1] = Results["SVGPMC"][:,1] .- Float64(readdlm("../cluster/time_correction/"*dataset*"SVGPMC.txt")[1])
+    end
+    if dataset == "mnist"
+        Results["SXGPMC"][:,1] = Results["SXGPMC"][:,1] .- Float64(readdlm("../cluster/time_correction/$(dataset)SXGPMC.txt")[1])
+    end
     # Results["TTGPC"] = readdlm(loc[dataset]["TTGPC"]*dataset*"Dataset/Results_TTGPC.txt")
     # Results["LogReg"] = readdlm(loc[dataset]["LogReg"]*dataset*"Dataset/Results_LogReg.txt")
 
@@ -254,7 +259,7 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
                 end
                 ylabel(NC[mname],fontsize=20.0)
                 legend([p["SXGPMC"];p["SVGPMC"];p["EPGPMC"]],#;p["TTGPC"];p["LogReg"]],
-                [NC["SXGPMC"];NC["SVGPMC"];NC["EPGPMC"]],fontsize=20.0)#;NC["TTGPC"];NC["LogReg"]])
+                [NC["SXGPMC"]*" (ours)";NC["SVGPMC"];NC["EPGPMC"]],fontsize=20.0)#;NC["TTGPC"];NC["LogReg"]])
                 giter-=1
             end
         end
@@ -298,9 +303,13 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
 end
 
 
-sizes = Dict("aXa"=>(36974,123),"Bank_marketing"=>(45211,43),"Click_Prediction"=>(399482,12),"Cod-rna"=>(343564,8),"Covtype"=>(581012,54),
-                    "Diabetis"=>(768,8),"Electricity"=>(45312,8),"German"=>(1000,20),"HIGGS"=>(11000000,28),"Ijcnn1"=>(141691,22),"Mnist"=>(70000,780),"Poker"=>(1025010,10),
-                    "Protein"=>(24837,357),"Shuttle"=>(58000,9),"SUSY"=>(5000000,18),"Vehicle"=>(98528,100),"wXa"=>(34780,300))
+sizes = Dict("wine"=>(178,13,3),"vehicle"=>(846,18,4),"shuttle"=>(58000,9,7),"sensorless"=>(58509,48,11),"seismic"=>(98528,50,3),
+            "segment"=>(2310,19,7),"satimage"=>(6430,36,6),"mnist"=>(70000,784,10),"isolet"=>(7797,617,26),"iris"=>(150,4,3),
+            "glass"=>(214,9,6),"fashion-mnist"=>(70000,784,10),"dna"=>(3386,180,3),"cpu_act"=>(8192,21,56),
+            "covtype"=>(851012,54,7),"combined"=>(98528,50,3),"acoustic"=>(98528,50,3))
+
+
+
 DatasetNameCorrection = Dict("iris"=>"Iris","wine"=>"Wine","glass"=>"Glass","vehicle"=>"Vehicle", "segment"=>"Segment",
                              "dna"=>"DNA","satimage"=>"SatImage","mnist"=>"MNIST","vehicle"=>"Vehicle","combined"=>"Combined",
                              "sensorless"=>"Sensorless","acoustic"=>"Acoustic","covtype"=>"CovType","cpu_act"=>"CPU Act",
@@ -308,31 +317,33 @@ DatasetNameCorrection = Dict("iris"=>"Iris","wine"=>"Wine","glass"=>"Glass","veh
                             "Cod-rna"=>"Cod RNA", "Covtype"=>"Cov Type", "Diabetis"=>"Diabetis","Electricity"=>"Electricity",
                             "German"=>"German","HIGGS"=>"Higgs","Ijcnn1"=>"IJCNN","Mnist"=>"Mnist","Shuttle"=>"Shuttle","SUSY"=>"SUSY","Vehicle"=>"Vehicle","wXa"=>"wXa")
 function Table()
-    dataset_list = readdlm("file_list_finished")
+    dataset_list = readdlm("file_list_finished_table")
     Methods = ["SXGPMC","SVGPMC","EPGPMC"]
-    MetricNames = Dict("Error"=>3,"NLL"=>5,"Time"=>1)
-    MetricsOrder = ["Error","NLL","Time"]
+    MetricNames = Dict("Error"=>1,"NLL"=>3)
+    MetricsOrder = ["Error","NLL"]
     full_table = Array{String,1}()
-    first_line = String("\\begin{table}[h!]\\centeringS
-\\begin{adjustbox}{max width=\\columnwidth}
-\\footnotesize
-\\begin{tabular}{|l|l|l|l|l|}
-Dataset & & \\textbf{$(NC[Methods[1]])} & $(NC[Methods[2]]) & $(NC[Methods[3]]) \\\\\\hline")
-    push!(full_table,first_line)
+    push!(full_table,"\\begin{table}[h!]\\centering")
+    push!(full_table,"\\begin{adjustbox}{max width=\\columnwidth}")
+    push!(full_table,"\\footnotesize")
+    push!(full_table,"\\begin{tabular}{|ll|l|l|l|l|}")
+    push!(full_table,"Dataset & && \\textbf{$(NC[Methods[1]])} & $(NC[Methods[2]]) & $(NC[Methods[3]]) \\\\\\hline")
 
     for dataset in dataset_list
-        Res = ConvergenceDetector(dataset,"Accuracy",epsilon=1e-3,window=10)
+        Res = ConvergenceDetector(dataset)
         println("Working on dataset $dataset")
         for metric in MetricsOrder
             new_line =""
             # new_line = new_line*"& "
             if metric == "Error"
-                new_line = new_line*"\\multirow{1}{*}{$(DatasetNameCorrection[dataset])}"
+                new_line = new_line*"$(DatasetNameCorrection[dataset]) & \$ C=$(sizes[dataset][3])\$"
             elseif  metric == "NLL"
-                new_line = new_line*"\$ n=$(sizes[dataset][1]) \$"
-            else
-                new_line = new_line*"\$ d=$(sizes[dataset][2]) \$"
+                new_line = new_line*"\$ N=$(sizes[dataset][1])\$ &\$ D=$(sizes[dataset][2]) \$"
             end
+            # if metric == "Error"
+            #     new_line = new_line*"$(DatasetNameCorrection[dataset])"
+            # elseif  metric == "NLL"
+            #     new_line = new_line*"\$ n=$(sizes[dataset][1])/d=$(sizes[dataset][2])/C=$(sizes[dataset][3]) \$"
+            # end
             new_line = new_line*" & $metric";
             mapped_values = Dict{Float64,String}()
             best_m = ""
@@ -345,26 +356,7 @@ Dataset & & \\textbf{$(NC[Methods[1]])} & $(NC[Methods[2]]) & $(NC[Methods[3]]) 
             end
 
             for m in Methods
-                if metric != "Time"
-                    mean_v = format(Res[m][MetricNames[metric]],precision=2); std_v = format(Res[m][MetricNames[metric]+1],precision=2) ;
-                else
-                    # if Res[m][MetricNames[metric]] > 1000
-                    #     mean_v = fmt(FormatSpec(".2e"),floor(Int64,Res[m][MetricNames[metric]]));
-                    if Res[m][MetricNames[metric]] > 10
-                        mean_v = format(floor(Int64,Res[m][MetricNames[metric]]));
-                    elseif Res[m][MetricNames[metric]] > 1
-                        mean_v = format(Res[m][MetricNames[metric]],precision=1);
-                    else
-                        mean_v = format(Res[m][MetricNames[metric]],precision=2);
-                    end
-                    if Res[m][MetricNames[metric]+1] > 10
-                        std_v = format(floor(Int64,Res[m][MetricNames[metric]+1]));
-                    elseif Res[m][MetricNames[metric]+1] > 1
-                        std_v = format(Res[m][MetricNames[metric]+1],precision=1);
-                    else
-                        std_v = format(Res[m][MetricNames[metric]+1],precision=2);
-                    end
-                end
+                mean_v = format(Res[m][MetricNames[metric]],precision=2); std_v = format(Res[m][MetricNames[metric]+1],precision=2) ;
                 if m == best_m
                     new_line = new_line*" & \$ \\mathbf{ $mean_v \\pm $std_v } \$"
                 else
@@ -372,74 +364,56 @@ Dataset & & \\textbf{$(NC[Methods[1]])} & $(NC[Methods[2]]) & $(NC[Methods[3]]) 
                 end
             end
             new_line = new_line*"\\\\"
-            if metric == "Time"
+            if metric == "NLL"
                 new_line = new_line*"\\hline"
             end
             push!(full_table,new_line)
         end
     end
-    last_line = "\\end{tabular}
-\\end{adjustbox}
-\\caption{Average test prediction error, negative test log-likelihood (NLL) and time in seconds along with one standard deviation.
-}
-\\label{tab:performance}
-\\end{table}"
-    push!(full_table,last_line)
+    push!(full_table,"\\end{tabular}")
+    push!(full_table,"\\end{adjustbox}")
+    push!(full_table,"\\caption{Average test prediction error (\$\\frac{\\text{\\# Misclassified TestPoints}}{\\text{\\# Test Points}}\$) and average negative test log-likelihood (NLL) along with one standard deviation for a time budget of 100 seconds. Best values highlighted in bold}")
+    push!(full_table,"\\label{tab:performance}")
+    push!(full_table,"\\end{table}")
     writedlm("Latex/Table.tex",full_table)
     return full_table
 end
-function ConvergenceDetector(dataset,metric;epsilon=1e-3,window=5,plot=false)
+m1 = 60
+e1 = 10
+m10 = 600
+e2 = 100
+e3 = 1000
+h1 = 3600
+global budget = Dict("acoustic"=>e2, "combined"=>e2, "covtype"=>e2, "dna"=>e2, "glass"=>e1, "iris"=>e1, "mnist"=>e3, "satimage"=>e2, "segment"=>e2, "seismic"=>e2, "sensorless"=>e2, "shuttle" =>e2, "vehicle"=>e2, "wine"=>e1 )
+
+function ConvergenceDetector(dataset;time=true)
     Methods = ["SVGPMC","SXGPMC","EPGPMC"]
     ConvResults = Dict{String,Any}()
-    ConvIter = Dict{String,Any}()
-    figure(2);clf()
-    giter=1
+    small = false
+    if in(["iris","wine","glass"],dataset)
+        small = true
+    end
+    NSamples = sizes[dataset][1];
+    N_epoch = small ? 1 : ceil(Int64,NSamples/200)
+    b = budget[dataset]
     for m in Methods
+        println(m)
         Res =
         readdlm(loc[dataset][m]*dataset*"Dataset/Results_"*m*".txt")
-        if m == "EPGPMC"
-            corr = Float64(readdlm(loc[dataset]["EPGPMC"]*"/../time_correction/"*dataset)[1])
-        end
         t = Res[:,1]
-        values = DataConversion(Res[:,metrics[metric]],metric)
-        Res[:,3] = SmoothIt(DataConversion(Res[:,3],"Accuracy"),window)
-        Res[:,5] = SmoothIt(DataConversion(Res[:,5],"MedianL"),window)
-        converged = false
-        values = SmoothIt(values,window)
-        conv = abs.(values[2:end]-values[1:end-1])
-        if haskey(Handpicked,dataset) && haskey(Handpicked[dataset],m)
-            ConvResults[m] = Res[Handpicked[dataset][m],1:6]
-        else
-            iter=2
-            if m == "SVGPMC"
-                iter = 200
-            end
-            while iter <= length(conv)
-                if mean(conv[max(1,iter-window):min(length(conv),iter+window)])<epsilon
-                # if conv[iter] < epsilon
-                    ConvResults[m] = Res[iter,1:6];
-                    ConvIter[m] = iter
-                    converged = true
-                    break;
-                end
-                iter+=1
-            end
-            if !converged
-                ConvResults[m] = Res[end,1:6]
-                ConvIter[m] = size(Res,1)
-                println("Reached end for dataset $dataset with method $m")
-            end
-            if m == "EPGPMC"
-                ConvResults[m][1] += corr
-            end
+        if m == "SVGPMC"
+            t -= Float64(readdlm("../cluster/time_correction/$(dataset)SVGPMC.txt")[1])
+        elseif m == "SXGPMC" && dataset == "mnist"
+            t -= Float64(readdlm("../cluster/time_correction/$(dataset)SXGPMC.txt")[1])
         end
-    end
-    if plot
-        display(ConvIter)
-        PlotMetricvsTime(dataset,"Accuracy")
-        for m in Methods
-            scatter([ConvResults[m][1]],[1-ConvResults[m][3]],color=colors[m],s=300.0)
+        i_budget = findfirst(t.>b)
+        if i_budget === nothing
+            i_budget = length(t)
         end
+        ConvResults[m] = [DataConversion(mean([Res[i_budget,3],Res[i_budget-1,3]]),"Accuracy"),
+        mean([Res[i_budget,4],Res[i_budget-1,4]]),
+        DataConversion(mean([Res[i_budget,5],Res[i_budget-1,5]]),"MeanL"),
+        mean([Res[i_budget,6],Res[i_budget-1,6]])]
     end
     return ConvResults
 end
@@ -448,6 +422,7 @@ Handpicked = Dict("aXa"=>Dict("EPGPMC"=>197), "Bank_marketing"=>Dict(), "Click_P
                     "Cod-rna"=>Dict(),"Covtype"=>Dict(),"Diabetis"=>Dict("SXGPMC"=>82,"SVGPMC"=>236),"Electricity"=>Dict(),
                     "German"=>Dict("SXGPMC"=>86,"SVGPMC"=>282),"HIGGS"=>Dict(),"Ijcnn1"=>Dict(),"Mnist"=>Dict(),"Shuttle"=>Dict(),
                     "SUSY"=>Dict(),"wXa"=>Dict())
+
 
 function PlotAutotuning(dataset,method;step=1)
   actualfolder = pwd()
