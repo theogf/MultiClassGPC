@@ -105,7 +105,7 @@ for (name,testmodel) in TestModels
         tmod[i] = (final_t-init_t)/1e9
     end # of the loop over the folds
     if iFold > 1
-        tmod[2] = tmod[1]
+        tmod[1] = tmod[2]
     end
     f_t = mean(tmod)
     writedlm("results/time_correction/$(testmodel.DatasetName)$(testmodel.MethodName).txt",f_t)

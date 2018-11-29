@@ -1,0 +1,48 @@
+This is BibTeX, Version 0.99d (TeX Live 2017/Debian)
+Capacity: max_strings=100000, hash_size=100000, hash_prime=85009
+The top-level auxiliary file: main.aux
+The style file: plainnat.bst
+Database file #1: bib.bib
+Warning--empty school in rocktaschel1922methoden
+You've used 18 entries,
+            2773 wiz_defined-function locations,
+            717 strings with 8581 characters,
+and the built_in function-call counts, 7999 in all, are:
+= -- 725
+> -- 473
+< -- 10
++ -- 159
+- -- 141
+* -- 638
+:= -- 1267
+add.period$ -- 68
+call.type$ -- 18
+change.case$ -- 99
+chr.to.int$ -- 18
+cite$ -- 37
+duplicate$ -- 369
+empty$ -- 624
+format.name$ -- 173
+if$ -- 1659
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 18
+newline$ -- 111
+num.names$ -- 72
+pop$ -- 185
+preamble$ -- 1
+purify$ -- 83
+quote$ -- 0
+skip$ -- 288
+stack$ -- 0
+substring$ -- 212
+swap$ -- 32
+text.length$ -- 1
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 193
+warning$ -- 1
+while$ -- 66
+width$ -- 0
+write$ -- 256
+(There was 1 warning)

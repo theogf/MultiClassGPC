@@ -1,0 +1,124 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyperFirstAtBeginDocument{\AtBeginDocument}
+\HyperFirstAtBeginDocument{\ifx\hyper@anchor\@undefined
+\global\let\oldcontentsline\contentsline
+\gdef\contentsline#1#2#3#4{\oldcontentsline{#1}{#2}{#3}}
+\global\let\oldnewlabel\newlabel
+\gdef\newlabel#1#2{\newlabelxx{#1}#2}
+\gdef\newlabelxx#1#2#3#4#5#6{\oldnewlabel{#1}{{#2}{#3}}}
+\AtEndDocument{\ifx\hyper@anchor\@undefined
+\let\contentsline\oldcontentsline
+\let\newlabel\oldnewlabel
+\fi}
+\fi}
+\global\let\hyper@last\relax 
+\gdef\HyperFirstAtBeginDocument#1{#1}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\bibstyle{plainnat}
+\citation{Williams98bayesianclassification,Rasmussen:2005:GPM:1162254}
+\citation{Hensman2015,Wenzel_PG}
+\citation{Williams98bayesianclassification,Kim:2006:BGP:1175897.1176234,Riihimaki:2013:NEP:2502581.2502584}
+\citation{DBLP:conf/icml/Villacampa-Calvo17,Hensman2015,quasi-monte-carlo-vi}
+\providecommand \oddpage@label [2]{}
+\jmlr@title{Scalable Multi-Class GP Classification via Data Augmentation}{Scalable Multi-Class Gaussian Process Classification\\ via Data Augmentation}
+\jmlr@author{ \Name {Th\'eo Galy-Fajou}$^1$, \Name {Florian Wenzel}$^{2}$, \Name {Christian Donner}$^1$ and \Name {Manfred Opper}$^1$ \\ \addr {$^1$TU Berlin, $^2$TU Kaiserslautern}\\ Contact: \texttt {galy-fajou@tu-berlin.de} }{ \Name {Th\'eo Galy-Fajou}$^1$, \Name {Florian Wenzel}$^{2}$, \Name {Christian Donner}$^1$ and \Name {Manfred Opper}$^1$ \\ \addr {$^1$TU Berlin, $^2$TU Kaiserslautern}\\ Contact: \texttt {galy-fajou@tu-berlin.de} }
+\newlabel{jmlrstart}{{}{1}{}{Doc-Start}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.0.1}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Conjugate Multi-Class Gaussian Process Classification}{1}{section.0.2}}
+\@writefile{toc}{\contentsline {paragraph}{The logistic-softmax GP model}{1}{section*.1}}
+\citation{DBLP:conf/nips/LindermanJA15,b-svm}
+\citation{walker2011posterior}
+\citation{PG}
+\newlabel{eq:likelihood}{{1}{2}{The logistic-softmax GP model}{equation.0.2.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{Augmentation 1: Gamma augmentation.}{2}{section*.2}}
+\newlabel{eq:afteraugmentation1}{{2}{2}{Augmentation 1: Gamma augmentation}{equation.0.2.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Augmentation 2: Poisson augmentation.}{2}{section*.3}}
+\newlabel{eq:afteraugmentation2}{{3}{2}{Augmentation 2: Poisson augmentation}{equation.0.2.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{Augmentation 3: P\'olya-Gamma augmentation.}{2}{section*.4}}
+\citation{Hensman2015}
+\citation{DBLP:journals/corr/BleiKM16}
+\citation{JMLR:v14:hoffman13a}
+\citation{DBLP:journals/corr/BleiKM16}
+\newlabel{eq:afteraugmentation3}{{4}{3}{Augmentation 3: P\'olya-Gamma augmentation}{equation.0.2.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{The full conditional distributions.}{3}{section*.5}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Scalable Inference}{3}{section.0.3}}
+\newlabel{sec:inference}{{3}{3}{Scalable Inference}{section.0.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{Sparse Gaussian process}{3}{section*.6}}
+\@writefile{toc}{\contentsline {paragraph}{Variational approximation}{3}{section*.7}}
+\newlabel{sec:var_approximation}{{3}{3}{Variational approximation}{section*.7}{}}
+\citation{kingma2014adam}
+\citation{arthur2007k}
+\citation{Hensman2015}
+\citation{DBLP:conf/aistats/SalimbeniEH18}
+\citation{DBLP:conf/icml/Villacampa-Calvo17}
+\bibdata{bib}
+\@writefile{toc}{\contentsline {paragraph}{Stochastic variational inference}{4}{section*.8}}
+\newlabel{sec:SVI}{{3}{4}{Stochastic variational inference}{section*.8}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Experiments}{4}{section.0.4}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Test prediction error and negative test log-likelihood as a function of training time (seconds in $\qopname  \relax o{log}_{10}$ scale) on CovType (851K points, 54 features, 7 classes).}}{4}{figure.1}}
+\newlabel{fig:conv}{{1}{4}{Test prediction error and negative test log-likelihood as a function of training time (seconds in $\log _{10}$ scale) on CovType (851K points, 54 features, 7 classes)}{figure.1}{}}
+\bibcite{arthur2007k}{{1}{2007}{{Arthur and Vassilvitskii}}{{}}}
+\bibcite{DBLP:journals/corr/BleiKM16}{{2}{2017}{{Blei et~al.}}{{Blei, Kucukelbir, and McAuliffe}}}
+\bibcite{quasi-monte-carlo-vi}{{3}{2018}{{Buchholz et~al.}}{{Buchholz, Wenzel, and Mandt}}}
+\bibcite{Hensman2015}{{4}{2015}{{Hensman and Matthews}}{{}}}
+\bibcite{JMLR:v14:hoffman13a}{{5}{2013}{{Hoffman et~al.}}{{Hoffman, Blei, Wang, and Paisley}}}
+\bibcite{Kim:2006:BGP:1175897.1176234}{{6}{2006}{{Kim and Ghahramani}}{{}}}
+\bibcite{kingma2014adam}{{7}{2014}{{Kingma and Ba}}{{}}}
+\bibcite{DBLP:conf/nips/LindermanJA15}{{8}{2015}{{Linderman et~al.}}{{Linderman, Johnson, and Adams}}}
+\bibcite{PG}{{9}{2013}{{Polson et~al.}}{{Polson, Scott, and Windle}}}
+\bibcite{Rasmussen:2005:GPM:1162254}{{10}{2005}{{Rasmussen and Williams}}{{}}}
+\bibcite{Riihimaki:2013:NEP:2502581.2502584}{{11}{2013}{{Riihim\"{a}ki et~al.}}{{Riihim\"{a}ki, Jyl\"{a}nki, and Vehtari}}}
+\bibcite{rocktaschel1922methoden}{{12}{1922}{{Rockt{\"a}schel}}{{}}}
+\bibcite{DBLP:conf/aistats/SalimbeniEH18}{{13}{2018}{{Salimbeni et~al.}}{{Salimbeni, Eleftheriadis, and Hensman}}}
+\bibcite{DBLP:conf/icml/Villacampa-Calvo17}{{14}{2017}{{Villacampa{-}Calvo and Hern{\'{a}}ndez{-}Lobato}}{{}}}
+\bibcite{walker2011posterior}{{15}{2011}{{Walker}}{{}}}
+\bibcite{b-svm}{{16}{2017}{{Wenzel et~al.}}{{Wenzel, Deutsch, Galy-Fajou, and Kloft}}}
+\bibcite{Wenzel_PG}{{17}{2018}{{Wenzel et~al.}}{{Wenzel, Galy{-}Fajou, Donner, Kloft, and Opper}}}
+\bibcite{Williams98bayesianclassification}{{18}{1998}{{Williams and Barber}}{{}}}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Algorithm details}{7}{section.0.A}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}The full conditional distributions.}{7}{subsection.0.A.1}}
+\newlabel{appendix:fullcond}{{A.1}{7}{The full conditional distributions}{subsection.0.A.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.2}Algorithm for Conjugate Multi--Class Gaussian Process Classification}{8}{subsection.0.A.2}}
+\newlabel{appendix:alg}{{A.2}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{subsection.0.A.2}{}}
+\newlabel{algo}{{1}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocfline.1}{}}
+\@writefile{loa}{\contentsline {algocf}{\numberline {1}{\ignorespaces Conjugate Multi-Class Gaussian Process Classification}}{8}{algocf.1}}
+\newlabel{algo:line_alpha_lambda}{{1}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocf.1}{}}
+\newlabel{algo:line_local}{{1}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocf.1}{}}
+\newlabel{algo:line_global1}{{1}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocf.1}{}}
+\newlabel{algo:line_global2}{{1}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocf.1}{}}
+\newlabel{algo:line_hyper}{{1}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocf.1}{}}
+\newlabel{algo2}{{2}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocfline.2}{}}
+\@writefile{loa}{\contentsline {algocf}{\numberline {2}{\ignorespaces Conjugate Multi-Class Gaussian Process Classification\nobreakspace  {}with class subsampling}}{8}{algocf.2}}
+\newlabel{algo2:line_alpha_lambda}{{2}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocf.2}{}}
+\newlabel{algo2:line_local}{{2}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocf.2}{}}
+\newlabel{algo2:line_global1}{{2}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocf.2}{}}
+\newlabel{algo2:line_global2}{{2}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocf.2}{}}
+\newlabel{algo2:line_hyper}{{2}{8}{Algorithm for Conjugate Multi--Class Gaussian Process Classification}{algocf.2}{}}
+\citation{rocktaschel1922methoden}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.3}Block coordinate ascent updates}{9}{subsection.0.A.3}}
+\newlabel{appendix:updates}{{A.3}{9}{Block coordinate ascent updates}{subsection.0.A.3}{}}
+\newlabel{eq:local_updates_gamma}{{6}{9}{Block coordinate ascent updates}{equation.0.A.6}{}}
+\newlabel{eq:local_updates_alpha}{{7}{9}{Block coordinate ascent updates}{equation.0.A.7}{}}
+\newlabel{eq:local_updates_omega}{{8}{9}{Block coordinate ascent updates}{equation.0.A.8}{}}
+\newlabel{eq:local_updates_omega_tilde}{{9}{9}{Block coordinate ascent updates}{equation.0.A.9}{}}
+\newlabel{eq:global_updates_1}{{10}{9}{Block coordinate ascent updates}{equation.0.A.10}{}}
+\newlabel{eq:global_updates_2}{{11}{9}{Block coordinate ascent updates}{equation.0.A.11}{}}
+\newlabel{eq:noisy_updates_alpha}{{12}{9}{Block coordinate ascent updates}{equation.0.A.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.4}Predictive distribution approximation}{10}{subsection.0.A.4}}
+\newlabel{appendix:pred}{{A.4}{10}{Predictive distribution approximation}{subsection.0.A.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {B}Experiments}{11}{section.0.B}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Performance table}{11}{subsection.0.B.1}}
+\newlabel{appendix:table}{{B.1}{11}{Performance table}{subsection.0.B.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Average test prediction error and average negative test log-likelihood (NLL) along with one standard deviation for a time budget of 100 seconds. Best values are highlighted in bold.}}{11}{table.1}}
+\newlabel{tab:performance}{{1}{11}{Average test prediction error and average negative test log-likelihood (NLL) along with one standard deviation for a time budget of 100 seconds. Best values are highlighted in bold}{table.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Additional convergence figures}{12}{subsection.0.B.2}}
+\newlabel{appendix:plots}{{B.2}{12}{Additional convergence figures}{subsection.0.B.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Average test prediction error and average negative test log likelihood as a function of training time (seconds in a $\qopname  \relax o{log}_{10}$ scale) on the datasets Acoustic (100k points, 50 features, 3 Classes), CovType (581K points, 54 features, 7 classes), DNA(3386 points, 180 features, 3 classes)}}{12}{figure.2}}
+\newlabel{fig:add_plots1}{{2}{12}{Average test prediction error and average negative test log likelihood as a function of training time (seconds in a $\log _{10}$ scale) on the datasets Acoustic (100k points, 50 features, 3 Classes), CovType (581K points, 54 features, 7 classes), DNA(3386 points, 180 features, 3 classes)}{figure.2}{}}
+\newlabel{jmlrend}{{B.2}{12}{end of Scalable Multi-Class GP Classification via Data Augmentation}{section*.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Average test prediction error and average negative test log likelihood as a function of training time (seconds in a $\qopname  \relax o{log}_{10}$ scale) on the datasets Glass (214 points, 9 features, 6 Classes), SatImage (6430 points, 36 features, 6 classes), Sensorless (58509 points, 48 features, 11 classes)}}{13}{figure.3}}
+\newlabel{fig:add_plots2}{{3}{13}{Average test prediction error and average negative test log likelihood as a function of training time (seconds in a $\log _{10}$ scale) on the datasets Glass (214 points, 9 features, 6 Classes), SatImage (6430 points, 36 features, 6 classes), Sensorless (58509 points, 48 features, 11 classes)}{figure.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Average test prediction error and average negative test log likelihood as a function of training time (seconds in a $\qopname  \relax o{log}_{10}$ scale) on the datasets Shuttle (58000 points, 9 features, 7 Classes), Vehicle (846 points, 18 features, 4 classes), Wine (178 points, 13 features, 3 classes)}}{14}{figure.4}}
+\newlabel{fig:add_plots3}{{4}{14}{Average test prediction error and average negative test log likelihood as a function of training time (seconds in a $\log _{10}$ scale) on the datasets Shuttle (58000 points, 9 features, 7 Classes), Vehicle (846 points, 18 features, 4 classes), Wine (178 points, 13 features, 3 classes)}{figure.4}{}}

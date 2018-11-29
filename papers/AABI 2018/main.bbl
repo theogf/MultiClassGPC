@@ -1,0 +1,135 @@
+\begin{thebibliography}{18}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Arthur and Vassilvitskii(2007)]{arthur2007k}
+David Arthur and Sergei Vassilvitskii.
+\newblock k-means++: The advantages of careful seeding.
+\newblock In \emph{Proceedings of the eighteenth annual ACM-SIAM symposium on
+  Discrete algorithms}, pages 1027--1035. Society for Industrial and Applied
+  Mathematics, 2007.
+
+\bibitem[Blei et~al.(2017)Blei, Kucukelbir, and
+  McAuliffe]{DBLP:journals/corr/BleiKM16}
+David~M. Blei, Alp Kucukelbir, and Jon~D. McAuliffe.
+\newblock Variational inference: {A} review for statisticians.
+\newblock \emph{Journal of the American Statistical Association}, 2017.
+\newblock URL \url{http://arxiv.org/abs/1601.00670}.
+
+\bibitem[Buchholz et~al.(2018)Buchholz, Wenzel, and
+  Mandt]{quasi-monte-carlo-vi}
+Alexander Buchholz, Florian Wenzel, and Stephan Mandt.
+\newblock Quasi-monte carlo variational inference.
+\newblock \emph{{ICML}}, 2018.
+
+\bibitem[Hensman and Matthews(2015)]{Hensman2015}
+James Hensman and Alexander Matthews.
+\newblock {Scalable Variational Gaussian Process Classification}.
+\newblock \emph{AISTATS}, 2015.
+\newblock ISSN 15337928.
+\newblock URL
+  \url{https://papers.nips.cc/paper/3351-the-generalized-fitc-approximation.pdf}.
+
+\bibitem[Hoffman et~al.(2013)Hoffman, Blei, Wang, and
+  Paisley]{JMLR:v14:hoffman13a}
+Matthew~D. Hoffman, David~M. Blei, Chong Wang, and John Paisley.
+\newblock {Stochastic Variational Inference}.
+\newblock \emph{JMLR}, 2013.
+\newblock URL \url{http://jmlr.org/papers/v14/hoffman13a.html}.
+
+\bibitem[Kim and Ghahramani(2006)]{Kim:2006:BGP:1175897.1176234}
+Hyun-Chul Kim and Zoubin Ghahramani.
+\newblock Bayesian gaussian process classification with the em-ep algorithm.
+\newblock \emph{IEEE Trans. Pattern Anal. Mach. Intell.}, 28\penalty0
+  (12):\penalty0 1948--1959, December 2006.
+\newblock ISSN 0162-8828.
+\newblock \doi{10.1109/TPAMI.2006.238}.
+\newblock URL \url{http://dx.doi.org/10.1109/TPAMI.2006.238}.
+
+\bibitem[Kingma and Ba(2014)]{kingma2014adam}
+Diederik~P Kingma and Jimmy Ba.
+\newblock Adam: A method for stochastic optimization.
+\newblock \emph{arXiv preprint arXiv:1412.6980}, 2014.
+
+\bibitem[Linderman et~al.(2015)Linderman, Johnson, and
+  Adams]{DBLP:conf/nips/LindermanJA15}
+Scott~W. Linderman, Matthew~J. Johnson, and Ryan~P. Adams.
+\newblock Dependent multinomial models made easy: Stick-breaking with the
+  polya-gamma augmentation.
+\newblock \emph{{NIPS}}, 2015.
+\newblock URL \url{https://arxiv.org/abs/1506.05843}.
+
+\bibitem[Polson et~al.(2013)Polson, Scott, and Windle]{PG}
+Nicholas~G. Polson, James~G. Scott, and Jesse Windle.
+\newblock Bayesian inference for logistic models using p{\'o}lya--gamma latent
+  variables.
+\newblock \emph{Journal of the American Statistical Association}, 108\penalty0
+  (504):\penalty0 1339--1349, 2013.
+\newblock \doi{10.1080/01621459.2013.829001}.
+\newblock URL \url{http://dx.doi.org/10.1080/01621459.2013.829001}.
+
+\bibitem[Rasmussen and Williams(2005)]{Rasmussen:2005:GPM:1162254}
+Carl~Edward Rasmussen and Christopher K.~I. Williams.
+\newblock \emph{{Gaussian Processes for Machine Learning (Adaptive Computation
+  and Machine Learning)}}.
+\newblock The MIT Press, 2005.
+\newblock ISBN 026218253X.
+
+\bibitem[Riihim\"{a}ki et~al.(2013)Riihim\"{a}ki, Jyl\"{a}nki, and
+  Vehtari]{Riihimaki:2013:NEP:2502581.2502584}
+Jaakko Riihim\"{a}ki, Pasi Jyl\"{a}nki, and Aki Vehtari.
+\newblock Nested expectation propagation for gaussian process classification.
+\newblock \emph{J. Mach. Learn. Res.}, 14\penalty0 (1):\penalty0 75--109,
+  January 2013.
+\newblock ISSN 1532-4435.
+\newblock URL \url{http://dl.acm.org/citation.cfm?id=2502581.2502584}.
+
+\bibitem[Rockt{\"a}schel(1922)]{rocktaschel1922methoden}
+Otto~Rudolf Rockt{\"a}schel.
+\newblock \emph{Methoden zur berechnung der gammafunktion f{\"u}r komplexes
+  argument}.
+\newblock PhD thesis, 1922.
+
+\bibitem[Salimbeni et~al.(2018)Salimbeni, Eleftheriadis, and
+  Hensman]{DBLP:conf/aistats/SalimbeniEH18}
+Hugh Salimbeni, Stefanos Eleftheriadis, and James Hensman.
+\newblock Natural gradients in practice: Non-conjugate variational inference in
+  gaussian process models.
+\newblock \emph{{AISTATS}}, 2018.
+
+\bibitem[Villacampa{-}Calvo and
+  Hern{\'{a}}ndez{-}Lobato(2017)]{DBLP:conf/icml/Villacampa-Calvo17}
+Carlos Villacampa{-}Calvo and Daniel Hern{\'{a}}ndez{-}Lobato.
+\newblock Scalable multi-class gaussian process classification using
+  expectation propagation.
+\newblock \emph{{ICML}}, 2017.
+
+\bibitem[Walker(2011)]{walker2011posterior}
+Stephen~G Walker.
+\newblock Posterior sampling when the normalizing constant is unknown.
+\newblock \emph{Communications in Statistics--Simulation and
+  Computation{\textregistered}}, 40\penalty0 (5):\penalty0 784--792, 2011.
+
+\bibitem[Wenzel et~al.(2017)Wenzel, Deutsch, Galy-Fajou, and Kloft]{b-svm}
+Florian Wenzel, Matth{\"a}us Deutsch, Theo Galy-Fajou, and Marius Kloft.
+\newblock Bayesian nonlinear support vector machines for big data.
+\newblock \emph{ECML PKDD}, 2017.
+
+\bibitem[Wenzel et~al.(2018)Wenzel, Galy{-}Fajou, Donner, Kloft, and
+  Opper]{Wenzel_PG}
+Florian Wenzel, Th{\'{e}}o Galy{-}Fajou, Christian Donner, Marius Kloft, and
+  Manfred Opper.
+\newblock Efficient gaussian process classification using polya-gamma data
+  augmentation.
+\newblock \emph{arXiv}, 2018.
+
+\bibitem[Williams and Barber(1998)]{Williams98bayesianclassification}
+Christopher K.~I. Williams and David Barber.
+\newblock Bayesian classification with gaussian processes.
+\newblock \emph{IEEE Transactions on Pattern Analysis and Machine
+  Intelligence}, 20:\penalty0 1342--1351, 1998.
+
+\end{thebibliography}

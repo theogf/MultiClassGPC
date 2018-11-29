@@ -196,7 +196,7 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     if metric != "Final"
         figure("Convergence on dataset "*dataset*" ",figsize=(16,9));clf();
     else
-        figure("Convergence on dataset "*dataset*" ",figsize=(13.23,4.7));clf();
+        figure("Convergence on dataset "*dataset*" ",figsize=(16,4.5));clf();
     end
     step=1
     if corrections
@@ -258,8 +258,13 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
                     xlabel("Iterations")
                 end
                 ylabel(NC[mname],fontsize=20.0)
+		if mname == "MeanL"
+			legpos = 2
+		else
+			legpos = 1
+		end
                 legend([p["SXGPMC"];p["SVGPMC"];p["EPGPMC"]],#;p["TTGPC"];p["LogReg"]],
-                [NC["SXGPMC"]*" (ours)";NC["SVGPMC"];NC["EPGPMC"]],fontsize=20.0)#;NC["TTGPC"];NC["LogReg"]])
+                [NC["SXGPMC"]*" (ours)";NC["SVGPMC"];NC["EPGPMC"]],fontsize=20.0,loc=legpos)#;NC["TTGPC"];NC["LogReg"]])
                 giter-=1
             end
         end

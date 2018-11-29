@@ -1,0 +1,12 @@
+\BOOKMARK [1][-]{section.0.1}{Introduction}{}% 1
+\BOOKMARK [1][-]{section.0.2}{Conjugate Multi-Class Gaussian Process Classification}{}% 2
+\BOOKMARK [1][-]{section.0.3}{Scalable Inference}{}% 3
+\BOOKMARK [1][-]{section.0.4}{Experiments}{}% 4
+\BOOKMARK [1][-]{section.0.A}{Algorithm details}{}% 5
+\BOOKMARK [2][-]{subsection.0.A.1}{The full conditional distributions.}{section.0.A}% 6
+\BOOKMARK [2][-]{subsection.0.A.2}{Algorithm for Conjugate Multi\205Class Gaussian Process Classification}{section.0.A}% 7
+\BOOKMARK [2][-]{subsection.0.A.3}{Block coordinate ascent updates}{section.0.A}% 8
+\BOOKMARK [2][-]{subsection.0.A.4}{Predictive distribution approximation}{section.0.A}% 9
+\BOOKMARK [1][-]{section.0.B}{Experiments}{}% 10
+\BOOKMARK [2][-]{subsection.0.B.1}{Performance table}{section.0.B}% 11
+\BOOKMARK [2][-]{subsection.0.B.2}{Additional convergence figures}{section.0.B}% 12
