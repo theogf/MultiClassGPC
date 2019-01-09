@@ -18,8 +18,8 @@ function DefaultParameters()
   return param
 end
 
-#Create a default parameters dictionary for XGPC
-function XGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,independent=true,main_param=DefaultParameters())
+#Create a default parameters dictionary for CGPC
+function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,independent=true,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
   param["nSamples"] = main_param["nSamples"]
@@ -46,7 +46,7 @@ function XGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
   return param
 end
 
-#Create a default parameters dictionary for SVGPMC (similar to XGPMC)
+#Create a default parameters dictionary for SVGPMC (similar to CGPMC)
 function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
@@ -68,7 +68,7 @@ function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   return param
 end
 
-#Create a default parameters dictionary for EPGPC (similar to XGPMC)
+#Create a default parameters dictionary for EPGPC (similar to CGPMC)
 function EPGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
@@ -84,7 +84,7 @@ function EPGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   return param
 end
 
-#Create a default parameters dictionary for TTGPC (similar to XGPMC)
+#Create a default parameters dictionary for TTGPC (similar to CGPMC)
 function TTGPMCParameters(;Stochastic=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
@@ -99,7 +99,7 @@ function TTGPMCParameters(;Stochastic=false,main_param=DefaultParameters())
 end
 
 
-#Create a default parameters dictionary for ARMC (similar to XGPMC)
+#Create a default parameters dictionary for ARMC (similar to CGPMC)
 function ARMCParameters(;Stochastic=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]

@@ -5,16 +5,16 @@
 include("get_arguments.jl")
 
 # if !in(LOAD_PATH,SRC_PATH); push!(LOAD_PATH,SRC_PATH); end;
-#Compare XGPMC, BSVM, SVGPMC and others
+#Compare SCGPMC, BSVM, SVGPMC and others
 
 #Methods and scores to test
-doSXGPMC = args["XGP"] #Sparse XGPMC (sparsity)
+doSCGPMC = args["SCGP"] #Sparse SCGPMC (sparsity)
 doEPGPMC = args["EPGP"]
 doSVGPMC = args["SVGP"] #Sparse Variational GPMC (Hensmann)
 doARMC = args["AR"]
 doTTGPMC = args["TTGP"]
 
-doBXGPMC = false
+doBCGPMC = false
 doStochastic = args["stochastic"]
 doAutotuning = args["autotuning"]
 doPointOptimization = args["point-optimization"]
@@ -69,8 +69,8 @@ main_param["Window"] = 10
 main_param["Autotuning"] = doAutotuning
 main_param["PointOptimization"] = doPointOptimization
 #All Parameters
-BXGPMCParam = XGPMCParameters(main_param=main_param,independent=true)
-SXGPMCParam = XGPMCParameters(Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param,independent=true)
+BCGPMCParam = CGPMCParameters(main_param=main_param,independent=true)
+SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param,independent=true)
 SVGPMCParam = SVGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 EPGPMCParam = EPGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 
@@ -78,8 +78,8 @@ EPGPMCParam = EPGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 #Set of all models
 TestModels = Dict{String,TestingModel}()
 
-if doBXGPMC; TestModels["BXGPMC"] = TestingModel("BXGPMC",DatasetName,ExperimentName,"BXGPMC",BXGPMCParam); end;
-if doSXGPMC; TestModels["SXGPMC"] = TestingModel("SXGPMC",DatasetName,ExperimentName,"SXGPMC",SXGPMCParam); end;
+if doBCGPMC; TestModels["BCGPMC"] = TestingModel("BCGPMC",DatasetName,ExperimentName,"BCGPMC",BCGPMCParam); end;
+if doSCGPMC; TestModels["SCGPMC"] = TestingModel("SCGPMC",DatasetName,ExperimentName,"SCGPMC",SCGPMCParam); end;
 if doSVGPMC;   TestModels["SVGPMC"]   = TestingModel("SVGPMC",DatasetName,ExperimentName,"SVGPMC",SVGPMCParam);      end;
 if doEPGPMC; TestModels["EPGPMC"] = TestingModel("EPGPMC",DatasetName,ExperimentName,"EPGPMC",EPGPMCParam); end;
 
@@ -136,8 +136,8 @@ for (name,testmodel) in TestModels
         #Reset the kernel
         if testmodel.MethodName == "SVGPMC"
             testmodel.Param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
-        elseif testmodel.MethodName == "SXGPMC"
-            println("SXGPMC : params : $([OMGP.KernelFunctions.getvalue(k.lengthscales) for k in testmodel.Model[i].kernel])\n and coeffs :  $([OMGP.KernelFunctions.getvalue(k.variance) for k in testmodel.Model[i].kernel])")
+        elseif testmodel.MethodName == "SCGPMC"
+            println("SCGPMC : params : $([OMGP.KernelFunctions.getvalue(k.lengthscales) for k in testmodel.Model[i].kernel])\n and coeffs :  $([OMGP.KernelFunctions.getvalue(k.variance) for k in testmodel.Model[i].kernel])")
         end
     end # of the loop over the folds
     ProcessResults(testmodel,iFold)

@@ -6,7 +6,7 @@ Set of functions for efficient testing.
 
 
 # module TestFunctions
-  using DelimitedFiles#, CSV
+  using DelimitedFiles, HDF5#, CSV
   using PyCall
   using Distances, LinearAlgebra, Distributions,StatsBase
   # using MATLAB
@@ -33,13 +33,13 @@ Set of functions for efficient testing.
 
   # export TestingModel
   # export get_Dataset
-  # export DefaultParameters, XGPMCParameters, SVGPMCParameters, ARMCParameters, TTGPMCParameters
+  # export DefaultParameters, SCPMCParameters, SVGPMCParameters, ARMCParameters, TTGPMCParameters
   # export CreateModel, TrainModel, RunTests, ProcessResults, PrintResults, WriteResults
   # export ComputePrediction, ComputePredictionAccuracy
 
 function get_Dataset(datasetname::String)
     println("Getting dataset")
-    data = readdlm("../data/"*datasetname*".csv",',')
+    data = h5read("../data/"*datasetname*".h5","data")
     # data = Matrix{Float64}(CSV.read("../data/"*datasetname*".csv",header=false))
     X = data[:,1:end-1]; y = floor.(Int64,data[:,end]);
     println("Dataset loaded")
@@ -74,10 +74,10 @@ include("initial_parameters.jl")
 #Create a model given the parameters passed in p
 function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
     y_cmap = countmap(y)
-    if tm.MethodType == "BXGPMC"
+    if tm.MethodType == "BCGPMC"
         tm.Model[i] = OMGP.MultiClass(X,y;kernel=tm.Param["Kernel"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
             VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? Float64.(zero(y)) : [0.0],IndependentGPs=tm.Param["independent"])
-    elseif tm.MethodType == "SXGPMC"
+    elseif tm.MethodType == "SCGPMC"
         # tm.Param["time_init"] = @elapsed
         tm.Model[i] = OMGP.SparseMultiClass(X,y;Stochastic=tm.Param["Stochastic"],batchsize=tm.Param["BatchSize"],m=tm.Param["M"],
             kernel=tm.Param["Kernel"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],
