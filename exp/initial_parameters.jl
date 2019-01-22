@@ -33,9 +33,9 @@ function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
   param["ϵ"] = main_param["ϵ"]; param["Window"] = main_param["Window"]; #Convergence criteria (checking parameters norm variation on a window)
   param["ConvCriter"] = main_param["ConvCriter"]
   if main_param["Kernel"] == "rbf"
-    param["Kernel"] = OMGP.RBFKernel(main_param["Θ"],variance=main_param["var"]) #Kernel creation (standardized for now)
+    param["Kernel"] = AugmentedGaussianProcesses.RBFKernel(main_param["Θ"],variance=main_param["var"]) #Kernel creation (standardized for now)
   else
-    param["Kernel"] = OMGP.RBFKernel([main_param["Θ"]],dim=main_param["nFeatures"],variance=main_param["var"]) #Kernel creation (standardized for now)
+    param["Kernel"] = AugmentedGaussianProcesses.RBFKernel([main_param["Θ"]],dim=main_param["nFeatures"],variance=main_param["var"]) #Kernel creation (standardized for now)
   end
   param["Verbose"] = if typeof(main_param["Verbose"]) == Bool; main_param["Verbose"] ? 2 : 0; else; param["Verbose"] = main_param["Verbose"]; end; #Verbose
   param["BatchSize"] = main_param["BatchSize"] #Number of points used for stochasticity
@@ -57,9 +57,9 @@ function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
   param["ϵ"] = main_param["ϵ"]
   if main_param["Kernel"] == "rbf"
-  param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+  param["Kernel"] =   gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false)
   else
-    param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+    param["Kernel"] = gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true)
   end
   param["BatchSize"] = main_param["BatchSize"]
   param["M"] = main_param["M"]

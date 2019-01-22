@@ -26,7 +26,7 @@ function parse_commandline()
             help = "Maximum number of iterations (x10 for SVGP)"
             arg_type = Int
             default = 100
-        "--XGP"
+        "--SCGP"
             help = "Run XGPC"
             action = :store_true
         "--SVGP"
@@ -53,7 +53,7 @@ function parse_commandline()
         "--nFold"
             help = "Divide the data set in n Folds"
             arg_type = Int
-            default = 10
+            default = 3
         "--iFold"
             help = "Number of fold which must be estimated (must be less or equal to nFold)"
             arg_type = Int

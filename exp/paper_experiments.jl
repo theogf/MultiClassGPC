@@ -3,20 +3,20 @@
 # Compute also the brier score and the logscore
 
 include("get_arguments.jl")
-
+cd(dirname(@__FILE__))
 # if !in(LOAD_PATH,SRC_PATH); push!(LOAD_PATH,SRC_PATH); end;
 #Compare SCGPMC, BSVM, SVGPMC and others
 
 #Methods and scores to test
-doSCGPMC = args["SCGP"] #Sparse SCGPMC (sparsity)
+doSCGPMC = !args["SCGP"] #Sparse SCGPMC (sparsity)
 doEPGPMC = args["EPGP"]
-doSVGPMC = args["SVGP"] #Sparse Variational GPMC (Hensmann)
+doSVGPMC = !args["SVGP"] #Sparse Variational GPMC (Hensmann)
 doARMC = args["AR"]
 doTTGPMC = args["TTGP"]
 
 doBCGPMC = false
 doStochastic = args["stochastic"]
-doAutotuning = args["autotuning"]
+doAutotuning = !args["autotuning"]
 doPointOptimization = args["point-optimization"]
 
 include("functions_paper_experiment.jl")
@@ -24,9 +24,6 @@ include("functions_paper_experiment.jl")
 ExperimentName = "Convergence"
 doSaveLastState = args["last-state"]
 doPlot = args["plot"]
-if doPlot
-    using PyPlot
-end
 doWrite = !args["no-writing"] #Write results in approprate folder
 ShowIntResults = true #Show intermediate time, and results for each fold
 
@@ -35,15 +32,15 @@ ShowIntResults = true #Show intermediate time, and results for each fold
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
-# dataset = "mnist"
-dataset = args["dataset"]
+dataset = "shuttle"
+# dataset = args["dataset"]
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
 MaxIter = args["maxiter"] #Maximum number of iterations for every algorithm
 iter_points= vcat(1:9,10:5:99,100:50:999,1e3:1e3:(1e4-1),1e4:1e4:1e5)
 
 (nSamples,nFeatures) = size(X_data);
-nFold = args["nFold"]; #Choose the number of folds
-iFold = args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
+nFold = 5;#args["nFold"]; #Choose the number of folds
+iFold = 2;#args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
 N_test_max = 10000
 if nSamples/nFold > N_test_max
@@ -56,7 +53,7 @@ main_param["nFeatures"] = nFeatures
 main_param["nSamples"] = nSamples
 main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["maxIter"]=MaxIter
-main_param["γ"] = 1e-3
+main_param["γ"] = 0.0
 main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "ard"
 l = initial_lengthscale(X_data)
@@ -137,7 +134,7 @@ for (name,testmodel) in TestModels
         if testmodel.MethodName == "SVGPMC"
             testmodel.Param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
         elseif testmodel.MethodName == "SCGPMC"
-            println("SCGPMC : params : $([OMGP.KernelFunctions.getvalue(k.lengthscales) for k in testmodel.Model[i].kernel])\n and coeffs :  $([OMGP.KernelFunctions.getvalue(k.variance) for k in testmodel.Model[i].kernel])")
+            println("SCGPMC : params : $([AugmentedGaussianProcesses.KernelModule.getlengthscales(k) for k in testmodel.Model[i].kernel])\n and coeffs :  $([AugmentedGaussianProcesses.KernelModule.getvariance(k) for k in testmodel.Model[i].kernel])")
         end
     end # of the loop over the folds
     ProcessResults(testmodel,iFold)
@@ -149,5 +146,6 @@ for (name,testmodel) in TestModels
     end
 end #Loop over the models
 if doPlot
+    using PyPlot
     PlotResults(TestModels)
 end

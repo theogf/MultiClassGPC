@@ -10,7 +10,7 @@ Set of functions for efficient testing.
   using PyCall
   using Distances, LinearAlgebra, Distributions,StatsBase
   # using MATLAB
-  import OMGP
+  import AugmentedGaussianProcesses
   @pyimport gpflow
   @pyimport tensorflow as tf
   # mat"addpath ~/Competitors/augment-reduce/src"
@@ -75,16 +75,16 @@ include("initial_parameters.jl")
 function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
     y_cmap = countmap(y)
     if tm.MethodType == "BCGPMC"
-        tm.Model[i] = OMGP.MultiClass(X,y;kernel=tm.Param["Kernel"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
-            VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? Float64.(zero(y)) : [0.0],IndependentGPs=tm.Param["independent"])
+        tm.Model[i] = AugmentedGaussianProcesses.MultiClass(X,y;kernel=tm.Param["Kernel"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],
+            verbose=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? Float64.(zero(y)) : [0.0],IndependentGPs=tm.Param["independent"])
     elseif tm.MethodType == "SCGPMC"
         # tm.Param["time_init"] = @elapsed
-        tm.Model[i] = OMGP.SparseMultiClass(X,y;Stochastic=tm.Param["Stochastic"],batchsize=tm.Param["BatchSize"],m=tm.Param["M"],
+        tm.Model[i] = AugmentedGaussianProcesses.SparseMultiClass(X,y;Stochastic=tm.Param["Stochastic"],batchsize=tm.Param["BatchSize"],m=tm.Param["M"],
             kernel=tm.Param["Kernel"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],
-            AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],noise=tm.Param["γ"],
-            SmoothingWindow=tm.Param["Window"],VerboseLevel=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0],IndependentGPs=tm.Param["independent"])
+            AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],
+            SmoothingWindow=tm.Param["Window"],verbose=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0],IndependentGPs=tm.Param["independent"])
     elseif tm.MethodType == "SVGPMC"
-        Z = OMGP.KMeansInducingPoints(X,tm.Param["M"],10)
+        Z = AugmentedGaussianProcesses.KMeansInducingPoints(X,tm.Param["M"],nMarkov=10)
         # tm.Param["time_init"] = @elapsed A = Ind_KMeans.([y_cmap],[y],[X],tm.Param["M"],0:(tm.Param["nClasses"]-1))
         if tm.Param["Stochastic"]
             #Stochastic Sparse SVGPC model
@@ -169,25 +169,25 @@ function Ind_KMeans(N_inst,Y,X,m,i)
     K_corr = nSamples/N_inst[i]-1.0
     weights = ones(nSamples)
     weights[Y.==i] = weights[Y.==i].*(K_corr-1.0).+(1.0)
-    return OMGP.KMeansInducingPoints(X,m,10,weights=weights)
+    return KMeansInducingPoints(X,m,10,weights=weights)
 end
 
 function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points)
     LogArrays = Array{Any,1}()
-    if typeof(tm.Model[i]) <: OMGP.GPModel
-        function LogIt(model::OMGP.GPModel,iter)
+    if typeof(tm.Model[i]) <: AugmentedGaussianProcesses.GPModel
+        function LogIt(model::AugmentedGaussianProcesses.GPModel,iter)
             if in(iter,iter_points)
                 a = Vector{Any}(undef,7)
                 a[1] = time_ns()
                 # y_p = OMGP.multiclasspredict(model,X_test,true)
-                y_p = OMGP.multiclasspredictproba(model,X_test,false)
+                y_p = AugmentedGaussianProcesses.multiclasspredictproba(model,X_test,false)
                 # y_exp = OMGP.multiclasssoftmax(model,X_test,false)
                 a[2] = TestAccuracy(model,y_test,y_p)
                 loglike = LogLikelihood(model,y_test,y_p)
                 # loglike_exp = LogLikelihood(model,y_test,y_exp)
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
-                a[5] = -OMGP.ELBO(model)
+                a[5] = -AugmentedGaussianProcesses.ELBO(model)
 
                 a[7] = 0#[OMGP.KernelFunctions.getvalue(k.param) for k in model.kernel]
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
@@ -334,12 +334,12 @@ function WriteResults(tm::TestingModel,location,writing_order)
 end
 
 #Return Accuracy on test set
-function TestAccuracy(model::OMGP.GPModel, y_test, y_predic)
+function TestAccuracy(model::AugmentedGaussianProcesses.GPModel, y_test, y_predic)
     score = 0
     # println(y_predic,y_test)
     for i in 1:length(y_test)
       # println("$i : $(y_test[i]+1) => $(y_predic[i])")
-        if (model.class_mapping[argmax(y_predic[i])]) == y_test[i]
+        if parse(Int64,string(argmax(y_predic[i,:]))) == y_test[i]
             score += 1
         end
     end
@@ -358,8 +358,8 @@ function TestAccuracy(y_test, y_predic)
 end
 
 
-function LogLikelihood(model::OMGP.GPModel,y_test,y_predic)
-    return [log(y_predic[i][model.ind_mapping[y_t]]) for (i,y_t) in enumerate(y_test)]
+function LogLikelihood(model::AugmentedGaussianProcesses.GPModel,y_test,y_predic)
+    return [log(y_predic[Symbol(y_t)][i]) for (i,y_t) in enumerate(y_test)]
 end
 
 function LogLikelihood(y_test,y_predic)
@@ -368,7 +368,7 @@ end
 
 
 function WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
-    if isa(testmodel.Model[i],OMGP.GPModel)
+    if isa(testmodel.Model[i],AugmentedGaussianProcesses.GPModel)
         if !isdir(top_fold); mkdir(top_fold); end;
         top_fold = top_fold*"/"*testmodel.DatasetName*"_SavedParams"
         if !isdir(top_fold); mkdir(top_fold); end;
@@ -379,10 +379,10 @@ function WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
         writedlm(top_fold*"/c"*"_$i",testmodel.Model[i].α)
         writedlm(top_fold*"/X_test"*"_$i",X_test)
         writedlm(top_fold*"/y_test"*"_$i",y_test)
-        if isa(testmodel.Model[i],OMGP.SparseModel)
+        if isa(testmodel.Model[i],AugmentedGaussianProcesses.SparseModel)
             writedlm(top_fold*"/ind_points"*"_$i",testmodel.Model[i].inducingPoints)
         end
-        if isa(testmodel.Model[i],OMGP.NonLinearModel)
+        if isa(testmodel.Model[i],AugmentedGaussianProcesses.NonLinearModel)
             writedlm(top_fold*"/kernel_param"*"_$i",broadcast(getfield,testmodel.Model[i].kernel,:param))
             writedlm(top_fold*"/kernel_coeff"*"_$i",broadcast(getfield,testmodel.Model[i].kernel,:coeff))
             writedlm(top_fold*"/kernel_name"*"_$i",broadcast(getfield,testmodel.Model[i].kernel,:name))
@@ -396,7 +396,7 @@ end
 function PlotResults(TestModels)
     nModels=length(TestModels)
     if nModels == 0; return; end;
-    figure("Convergence Results");clf();
+    f = figure("Convergence Results");clf();
     colors=["blue", "red", "green"]
     subplot(2,2,1); #Accuracy
         iter=1
@@ -470,6 +470,7 @@ function PlotResults(TestModels)
     # legend()
     # xlabel("Time [s]")
     # display(ylabel("Coeff"))
+    display(f)
 end
 
 
