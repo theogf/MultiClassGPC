@@ -39,7 +39,7 @@ N_dim=2
 # X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 
 for c in 1:N_class
-    global centers = rand(Uniform(-1,1),N_class,N_dim)
+    global centers = rand(Uniform(-1,1),N_class,N_dim)*0.6
     global variance = 0.7*1/N_class*ones(N_class)#rand(Gamma(1.0,0.5),150)
 end
 
@@ -166,22 +166,20 @@ metrics = MVHistory()
 kerparams = MVHistory()
 
 
-emodel = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,optimizer=0.01,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
+emodel = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
 Z = emodel.inducingPoints
 # emodel = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=3,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
 # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(model,X_test=X_test,y_test=y_test)
 # model.AutotuningFrequency=1
-t_full = @elapsed emodel.train(iterations=10000,callback=callback2)
+t_full = @elapsed emodel.train(iterations=2000,callback=callback2)
 
 global y_full = emodel.predictproba(X_test)
 global y_fall = AugmentedGaussianProcesses.multiclasspredict(emodel,X_test)
 global y_ftrain = emodel.predict(X)
 global y_fgrid = emodel.predict(X_grid)
-println("Expected model Accuracy is $(acc(y_test,y_fall)) and loglike : $(loglike(y_test,y_full)) in $t_full s")
-plot(metrics,title="Metrics")
-plot(elbos,title="ELBO")
+println("Expected model Accuracy is $(acc(y_test,y_fall)) and loglike : $(loglike(y_test,y_full)) in $t_full s for l = $l")
 pker=plot(kerparams,title="Kernel parameters",yaxis=:log)
-emap = title!(callback(emodel,2),"Expected")
+emap = title!(callback(emodel,2),"LogSoftMax")
 emetrics = deepcopy(metrics)
 ekerparams = deepcopy(kerparams)
 
@@ -189,31 +187,32 @@ ekerparams = deepcopy(kerparams)
 elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
-amodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=0,ϵ=1e-20,kernel=kernel,Stochastic=false,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
+amodel = AugmentedGaussianProcesses.SparseSoftMaxMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,optimizer=0.01,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=50)
 amodel.inducingPoints = Z
 # fmetrics, callback = AugmentedGaussianProcesses.getMultiClassLog(model,X_test=X_test,y_test=y_test)
 # model.AutotuningFrequency=1
-t_full = @elapsed amodel.train(iterations=200,callback=callback2)
+t_full = @elapsed amodel.train(iterations=2000,callback=callback2)
 
 global y_full = amodel.predictproba(X_test)
 global y_fall = AugmentedGaussianProcesses.multiclasspredict(amodel,X_test)
 global y_ftrain = amodel.predict(X)
 global y_fgrid = amodel.predict(X_grid)
-println("Augmented model Accuracy is $(acc(y_test,y_fall)) and loglike : $(loglike(y_test,y_full)) in $t_full s")
-display(plot(metrics,title="Metrics"))
-display(plot(elbos,title="ELBO"))
+println("Augmented model Accuracy is $(acc(y_test,y_fall)) and loglike : $(loglike(y_test,y_full)) in $t_full s for l = $l")
 pker=plot(kerparams,title="Kernel parameters",yaxis=:log)
-amap= title!(callback(amodel,2),"Augmented")
+amap= title!(callback(amodel,2),"SoftMax")
 ametrics = deepcopy(metrics)
 akerparams = deepcopy(kerparams)
 
-pemetrics = plot(emetrics,title="Expected",markersize=0.0,linewidth=2.0)
-pametrics = plot(ametrics,title="Augmented",markersize=0.0,linewidth=2.0)
+pemetrics = plot(emetrics,title="LogSoftMax")
+pametrics = plot(ametrics,title="SoftMax")
 metlims = (min(ylims(pemetrics)[1],ylims(pametrics)[1]),max(ylims(pemetrics)[2],ylims(pametrics)[2]))
-pmet = plot(plot(emetrics,title="Expected",ylims=metlims,markersize=0.0,linewidth=2.0),plot(ametrics,title="Augmented",ylims=metlims,markersize=0.0,linewidth=2.0))
-display(pmet)
-pekerparams = plot(ekerparams,title="Expected",yaxis=:log,markersize=0.0,linewidth=2.0)
-pakerparams = plot(akerparams,title="Augmented",yaxis=:log,markersize=0.0,linewidth=2.0)
+
+pekerparams = plot(ekerparams,title="LogSoftMax",yaxis=:log)
+pakerparams = plot(akerparams,title="SoftMax",yaxis=:log)
 parlims = (min(ylims(pekerparams)[1],ylims(pakerparams)[1]),max(ylims(pekerparams)[2],ylims(pakerparams)[2]))
-pker = plot(plot(ekerparams,title="Expected",t=:line,yaxis=:log,ylims=parlims,markersize=0.0,linewidth=2.0),plot(akerparams,title="Augmented",yaxis=:log,ylims=parlims,markersize=0.0,linewidth=2.0))
+pmet = plot(plot(emetrics,title="LogSoftMax",ylims=metlims,markersize=0.0,linewidth=2.0),plot(ametrics,title="SoftMax",ylims=metlims,markersize=0.0,linewidth=2.0))
+pker = plot(plot(ekerparams,title="LogSoftMax",t=:line,yaxis=:log,ylims=parlims,markersize=0.0,linewidth=2.0),plot(akerparams,title="SoftMax",yaxis=:log,ylims=parlims,markersize=0.0,linewidth=2.0))
 pmap = plot(emap,amap)
+display(pmet)
+display(pker)
+display(pmap)
