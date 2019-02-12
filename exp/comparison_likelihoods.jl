@@ -7,6 +7,7 @@ using ValueHistories
 using Plots
 using LinearAlgebra
 pyplot()
+clibrary(:cmocean)
 seed!(42)
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
@@ -81,6 +82,7 @@ function latent(X)
 end
 N_dim=2
 N_iterations = 500
+m = 50
 art_noise = 0.5
 
 X_clean = (rand(N_data,N_dim)*2.0).-1.0
@@ -139,7 +141,8 @@ function gpflowcallbackplot(model,iter)
     y_fgrid = mapslices(argmax,py_fgrid,dims=2)
     global cols = reshape([RGB(py_fgrid[i,:]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
-    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false.framestyle=:box)
+    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,framestyle=:box)
+    lims = (xlims(p1),ylims(p1))
     p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.2)
     p1=plot!(p1,model[:feature][:Z][:value][:,1],model[:feature][:Z][:value][:,2],color=:black,t=:scatter,lab="")
     p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(-0,100),t=:contour,colorbar=false,color=:gray,levels=10)
@@ -195,7 +198,6 @@ function callback(model,iter)
                 push!(kerparams,Symbol("l",i,"_",j),p_j)
             end
         else
-            println("BLAH")
             push!(kerparams,Symbol("l",i),p[1])
         end
         push!(kerparams,Symbol("v",i),getvariance(model.kernel[i]))
@@ -233,7 +235,7 @@ elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
 
-alsmmodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=50)
+alsmmodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=m)
 Z = copy(alsmmodel.inducingPoints)
 t_alsm = @elapsed alsmmodel.train(iterations=N_iterations,callback=callback)
 
@@ -250,7 +252,7 @@ elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
 
-lsmmodel = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=50)
+lsmmodel = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=m)
 lsmmodel.inducingPoints = Z
 t_lsm = @elapsed lsmmodel.train(iterations=N_iterations,callback=callback)
 
@@ -266,7 +268,7 @@ lsm_elbo = deepcopy(elbos)
 elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
-smmodel = AugmentedGaussianProcesses.SparseSoftMaxMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,optimizer=0.01,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=50)
+smmodel = AugmentedGaussianProcesses.SparseSoftMaxMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,optimizer=0.01,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=m)
 smmodel.inducingPoints = Z
 t_sm = @elapsed smmodel.train(iterations=N_iterations,callback=callback)
 
@@ -327,7 +329,7 @@ display(pmap)
 plot(pmet,pelbo)
 
 cd(@__DIR__)
-savefig(pmet,"resultslikelihood/metrics_noise$(art_noise).pmg")
-savefig(pmap,"resultslikelihood/plot_noise$(art_noise).pmg")
-savefig(pelbo,"resultslikelihood/elbo_noise$(art_noise).pmg")
-savefig(pker,"resultslikelihood/kernel_params_noise$(art_noise).pmg")
+savefig(pmet,"resultslikelihood/metrics_noise$(art_noise).png")
+savefig(pmap,"resultslikelihood/plot_noise$(art_noise).png")
+savefig(pelbo,"resultslikelihood/elbo_noise$(art_noise).png")
+savefig(pker,"resultslikelihood/kernel_params_noise$(art_noise).png")
