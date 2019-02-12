@@ -47,7 +47,7 @@ function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
 end
 
 #Create a default parameters dictionary for SVGPMC (similar to CGPMC)
-function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
+function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters(),dohybrid=false)
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
   param["nSamples"] = main_param["nSamples"]
@@ -65,6 +65,7 @@ function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param["M"] = main_param["M"]
   param["SmoothingWindow"] = main_param["Window"]
   param["ConvCriter"] = main_param["ConvCriter"]
+  param["nConjugateSteps"] = 200
   return param
 end
 

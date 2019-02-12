@@ -77,7 +77,7 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
     if tm.MethodType == "BCGPMC"
         tm.Model[i] = AugmentedGaussianProcesses.MultiClass(X,y;kernel=tm.Param["Kernel"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],
             verbose=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? Float64.(zero(y)) : [0.0],IndependentGPs=tm.Param["independent"])
-    elseif tm.MethodType == "SCGPMC"
+    elseif tm.MethodType == "SCGPMC" || tm.MethodType == "HSCGPMC"
         # tm.Param["time_init"] = @elapsed
         tm.Model[i] = AugmentedGaussianProcesses.SparseMultiClass(X,y;Stochastic=tm.Param["Stochastic"],batchsize=tm.Param["BatchSize"],m=tm.Param["M"],
             kernel=tm.Param["Kernel"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],
@@ -163,6 +163,29 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
     model[:anchor](sess)
 end
 
+function trainhybrid(model,iterations,LogIt,param)
+    tm.Model[i].train(iterations=param["nConjugateSteps"],callback=LogIt)
+    new_model = SparseLogisticSoftMaxMultiClass(tm.Model[i].X,tm.Model[i].y,Stochastic=tm.Model[i].Stochastic,m=tm.Model[i].nFeatures,batchsize=tm.Model[i].)
+    new_model.nEpochs = tm.Model[i].nEpochs
+    new_model.verbose = tm.Model[i].verbose
+    new_model.Stochastic = tm.Model[i].Stochastic
+    new_model.Autotuning = tm.Model[i].Autotuning
+    new_model.AutotuningFrequency = tm.Model[i].AutotuningFrequency
+    new_model.HyperParametersUpdated = tm.Model[i].HyperParametersUpdated
+    new_model.Trained = true
+    new_model.IndependentGPs = tm.Model[i].IndependentGPs
+    new_model.kernel = tm.Model[i].kernel
+    new_model.μ = tm.Model[i].μ
+    new_model.η₁ = tm.Model[i].η₁
+    new_model.Σ = tm.Model[i].Σ
+    new_model.η₂ = tm.Model[i].η₂
+    new_model.α = tm.Model[i].α
+
+
+
+
+end
+
 "Function to obtain the weighted KMeans for one class"
 function Ind_KMeans(N_inst,Y,X,m,i)
     nSamples = size(X,1)
@@ -196,7 +219,11 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 push!(LogArrays,a)
             end
         end
-      tm.Model[i].train(iterations=iterations,callback=LogIt)
+        if tm.MethodType == "HSCGPMC"
+            trainhybrid(tm.Model[i],iterations,LogIt)
+        else
+            tm.Model[i].train(iterations=iterations,callback=LogIt)
+        end
     elseif tm.MethodType == "SVGPMC"
       function pythonlogger(model,session,iter)
             if in(iter,iter_points)

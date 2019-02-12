@@ -9,6 +9,7 @@ cd(dirname(@__FILE__))
 
 #Methods and scores to test
 doSCGPMC = !args["SCGP"] #Sparse SCGPMC (sparsity)
+doHSCGPMC = args["HSCGP"]
 doEPGPMC = args["EPGP"]
 doSVGPMC = !args["SVGP"] #Sparse Variational GPMC (Hensmann)
 doARMC = args["AR"]
@@ -68,6 +69,7 @@ main_param["PointOptimization"] = doPointOptimization
 #All Parameters
 BCGPMCParam = CGPMCParameters(main_param=main_param,independent=true)
 SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param,independent=true)
+HSCGPMCParam = CGPMCParameters(dohybrid=true,Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param,independent=true)
 SVGPMCParam = SVGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 EPGPMCParam = EPGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 
@@ -77,6 +79,7 @@ TestModels = Dict{String,TestingModel}()
 
 if doBCGPMC; TestModels["BCGPMC"] = TestingModel("BCGPMC",DatasetName,ExperimentName,"BCGPMC",BCGPMCParam); end;
 if doSCGPMC; TestModels["SCGPMC"] = TestingModel("SCGPMC",DatasetName,ExperimentName,"SCGPMC",SCGPMCParam); end;
+if doHSCGPMC; TestModels["HSCGPMC"] = TestingModel("HSCGPMC",DatasetName,ExperimentName,"HSCGPMC",HSCGPMCParam); end;
 if doSVGPMC;   TestModels["SVGPMC"]   = TestingModel("SVGPMC",DatasetName,ExperimentName,"SVGPMC",SVGPMCParam);      end;
 if doEPGPMC; TestModels["EPGPMC"] = TestingModel("EPGPMC",DatasetName,ExperimentName,"EPGPMC",EPGPMCParam); end;
 
