@@ -6,6 +6,7 @@ using PyCall
 using ValueHistories
 using Plots
 using LinearAlgebra
+using BenchmarkTools
 pyplot()
 clibrary(:cmocean)
 seed!(42)
@@ -83,7 +84,7 @@ end
 N_dim=2
 N_iterations = 500
 m = 50
-art_noise = 0.3
+art_noise = 0.1
 
 X_clean = (rand(N_data,N_dim)*2.0).-1.0
 y = zeros(Int64,N_data); y_noise = similar(y)
@@ -118,7 +119,7 @@ function callbackplot(model,iter)
     end
     y_fgrid =  model.predict(X_grid)
     global py_fgrid = model.predictproba(X_grid)
-    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))[collect(values(sort(model.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    global cols = reshape([RGB(permutedims(Vector(py_fgrid[i,:]))[collect(values(sort(model.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
     global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,framestyle=:box)
     lims = (xlims(p1),ylims(p1))
@@ -184,6 +185,7 @@ function gpflowloglike(y_test,y_pred)
 end
 
 function callback(model,iter)
+    AugmentedGaussianProcesses.computeMatrices!(model)
     y_pred = model.predict(X_test)
     py_pred = model.predictproba(X_test)
     push!(metrics,:err,1-acc(y_test,y_pred))
@@ -195,13 +197,16 @@ function callback(model,iter)
         p = getlengthscales(model.kernel[i])
         if length(p) > 1
             for (j,p_j) in enumerate(p)
-                push!(kerparams,Symbol("l",i,"_",j),p_j)
+                push!(lparams,Symbol("l",i,"_",j),p_j)
             end
         else
-            push!(kerparams,Symbol("l",i),p[1])
+            push!(lparams,Symbol("l",i),p[1])
         end
-        push!(kerparams,Symbol("v",i),getvariance(model.kernel[i]))
+        push!(vparams,Symbol("v",i),getvariance(model.kernel[i]))
+        push!(params,Symbol("Σ",i),tr(model.Σ[i]))
+        push!(params,Symbol("μ",i),mean(model.μ[i]))
     end
+    # println(model.kernel)
 end
 
 function callbackgpflow(model,session,iter)
@@ -223,129 +228,73 @@ function initial_lengthscale(X)
 end
 l = sqrt(initial_lengthscale(X))
 
-kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim,variance=1.0)
+kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim,variance=10.0)
 # kernel = AugmentedGaussianProcesses.RBFKernel(l,variance=10.0)
 # setfixed!(kernel.fields.lengthscales)
 # setfixed!(kernel.fields.variance)
 autotuning = true
 
+function trainhybrid(model,iterationsaug,iterations,callback,param)
+    model.train(iterations=iterationsaug,callback=callback)
+    new_model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(model.X,model.y,Stochastic=model.Stochastic,m=model.nFeatures,batchsize=model.nSamplesUsed,kernel=model.kernel[1],IndependentGPs=model.IndependentGPs,verbose=3,nEpochs=50,optimizer=0.5,Autotuning=true)
+    for field in fieldnames(typeof(model))
+        if field != :prev_params && field != :K_map && field != :g && field!= :h && field!= :τ && field != :Knn && field != :invK   && field != :train && field != :fstar && field != :predict && field != :predictproba && field != :elbo && field != :Autotuning
+            @eval $new_model.$field = $model.$field
+        end
+    end
+    println(model.kernel)
+    model = new_model
+    model.train(iterations=iterations,callback=callback)
+    return model
+end
 
 ### AUG. LOGISTIC SOFTMAX
 elbos = MVHistory()
 metrics = MVHistory()
-kerparams = MVHistory()
+lparams = MVHistory()
+vparams = MVHistory()
+params = MVHistory()
 
-alsmmodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=0,ϵ=1e-20,kernel=kernel,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=m)
+alsmmodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,Autotuning=true,AutotuningFrequency=1,IndependentGPs=true,m=m)
 Z = copy(alsmmodel.inducingPoints)
-alsmmodel.train(iterations=1)
-# @profiler t_alsm = @elapsed alsmmodel.train(iterations=100)
-# Atom.@trace AugmentedGaussianProcesses.updateHyperParameters!(alsmmodel)
-t_alsm = @elapsed alsmmodel.train(iterations=N_iterations,callback=callback)
+it_aug = 100
+it = 200
+model=alsmmodel
+# alsmmodel.train(iterations=200,callback=callback)
 
+alsmmodel = trainhybrid(alsmmodel,it_aug,it,callback,1)
+# alsmmodel.train(iterations=10)
+# @profiler alsmmodel.train(iterations=10)
+# @profiler AugmentedGaussianProcesses.Gradient_Expec(alsmmodel)
+# @btime AugmentedGaussianProcesses.Gradient_Expec(alsmmodel)
 global py_alsm = alsmmodel.predictproba(X_test)
 global y_alsm = alsmmodel.predict(X_test)
-AUC_alsm = multiclassAUC(alsmmodel,y_test,py_alsm)
-println("Expected model accuracy is $(acc(y_test,y_alsm)), loglike : $(loglike(y_test,py_alsm)) and AUC $(AUC_alsm) in $t_alsm s")
-alsm_map = title!(callbackplot(alsmmodel,2),"Aug. LogSoftMax")
+# println("Expected model Accuracy is $(acc(y_test,y_alsm)) and loglike : $(loglike(y_test,py_alsm)) in $t_alsm s")
+##
+alsm_map = title!(callbackplot(alsmmodel,2),"Hybrid LogSoftMax");
 alsm_metrics = deepcopy(metrics)
-alsm_kerparams = deepcopy(kerparams)
+alsm_lparams = deepcopy(lparams)
+alsm_vparams = deepcopy(vparams)
+alsm_params = deepcopy(params)
 alsm_elbo = deepcopy(elbos)
 
-### LOGISTIC SOFTMAX
-elbos = MVHistory()
-metrics = MVHistory()
-kerparams = MVHistory()
+pmet_alsm = plot(alsm_metrics,title="Hybrid LogSoftMax",markersize=0.0,linewidth=2.0)
+vline!(pmet_alsm,[it_aug],lab="")
 
-lsmmodel = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=m)
-lsmmodel.inducingPoints = Z
-t_lsm = @elapsed lsmmodel.train(iterations=N_iterations,callback=callback)
+pl_alsm = plot(alsm_lparams,title="Hybrid LogSoftMax",yaxis=:log,markersize=0.0,linewidth=2.0)
+vline!(pl_alsm,[it_aug],lab="")
 
-global py_lsm = lsmmodel.predictproba(X_test)
-global y_lsm = lsmmodel.predict(X_test)
-AUC_lsm = multiclassAUC(lsmmodel,y_test,py_lsm)
-println("Expected model accuracy is $(acc(y_test,y_lsm)), loglike : $(loglike(y_test,py_lsm)) and AUC $(AUC_lsm) in $t_lsm s")
-lsm_map = title!(callbackplot(lsmmodel,2),"LogSoftMax")
-lsm_metrics = deepcopy(metrics)
-lsm_kerparams = deepcopy(kerparams)
-lsm_elbo = deepcopy(elbos)
+pv_alsm = plot(alsm_vparams,title="Hybrid LogSoftMax",yaxis=:log,markersize=0.0,linewidth=2.0)
+vline!(pv_alsm,[it_aug],lab="")
 
-## SOFTMAX
-elbos = MVHistory()
-metrics = MVHistory()
-kerparams = MVHistory()
-smmodel = AugmentedGaussianProcesses.SparseSoftMaxMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=m)
-smmodel.inducingPoints = Z
-t_sm = @elapsed smmodel.train(iterations=N_iterations,callback=callback)
-
-global py_sm = smmodel.predictproba(X_test)
-global y_sm = smmodel.predict(X_test)
-AUC_sm = multiclassAUC(smmodel,y_test,py_sm)
-println("Expected model accuracy is $(acc(y_test,y_sm)), loglike : $(loglike(y_test,py_sm)) and AUC $(AUC_sm) in $t_sm s")
-sm_map= title!(callbackplot(smmodel,2),"SoftMax")
-sm_metrics = deepcopy(metrics)
-sm_kerparams = deepcopy(kerparams)
-sm_elbo = deepcopy(elbos)
-
-## ROBUST MAX
-elbos = MVHistory()
-metrics = MVHistory()
-kerparams = MVHistory()
-rmmodel = gpflow.models[:SVGP](X, Float64.(reshape(y.-1,(length(y),1))),kern=gpflow.kernels[:RBF](N_dim,lengthscales=l,ARD=true),likelihood=gpflow.likelihoods[:MultiClass](N_class),num_latent=N_class,Z=Z[1])
-t_rm = @elapsed run_nat_grads_with_adam(rmmodel,N_iterations/10,callback=callbackgpflow,Stochastic=false)
-
-global py_rm = rmmodel[:predict_y](X_test)[1]
-AUC_rm = multiclassAUC(y_test,py_rm)
-println("Expected model accuracy is $(gpflowacc(y_test,py_rm)), loglike : $(gpflowloglike(y_test,py_rm)) and AUC $(AUC_rm) in $t_sm s")
-rm_map= title!(gpflowcallbackplot(rmmodel,2),"RobustMax")
-rm_metrics = deepcopy(metrics)
-rm_kerparams = deepcopy(kerparams)
-rm_elbo = deepcopy(elbos)
+ppar_alsm = plot(alsm_params,title="Hybrid LogSoftMax",markersize=0.0,linewidth=2.0)
+vline!(ppar_alsm,[it_aug],lab="")
 
 
-## Plotting part
-pmet_alsm = plot(alsm_metrics,title="Aug. LogSoftMax",markersize=0.0,linewidth=2.0)
-pmet_lsm = hline!(pmet_alsm,[bayes_error],lab="",line=(2.0,:red))
-pmet_lsm = plot(lsm_metrics,title="LogSoftMax",markersize=0.0,linewidth=2.0)
-pmet_lsm = hline!(pmet_lsm,[bayes_error],lab="",line=(2.0,:red))
-pmet_sm = plot(sm_metrics,title="SoftMax",markersize=0.0,linewidth=2.0)
-pmet_sm = hline!(pmet_sm,[bayes_error],lab="",line=(2.0,:red))
-pmet_rm = plot(rm_metrics,title="RobustMax",markersize=0.0,linewidth=2.0)
-pmet_rm = hline!(pmet_rm,[bayes_error],lab="",line=(2.0,:red))
-met_lims = (min(ylims(pmet_alsm)[1],ylims(pmet_lsm)[1],ylims(pmet_sm)[1],ylims(pmet_rm)[1]),max(ylims(pmet_alsm)[2],ylims(pmet_lsm)[2],ylims(pmet_sm)[2],ylims(pmet_rm)[2]))
-
-pker_alsm = plot(alsm_kerparams,title="Aug. LogSoftMax",yaxis=:log,markersize=0.0,linewidth=2.0)
-pker_lsm = plot(lsm_kerparams,title="LogSoftMax",yaxis=:log,markersize=0.0,linewidth=2.0)
-pker_sm = plot(sm_kerparams,title="SoftMax",yaxis=:log,markersize=0.0,linewidth=2.0)
-pker_rm = plot(rm_kerparams,title="RobustMax",yaxis=:log,markersize=0.0,linewidth=2.0)
-ker_lims = (min(ylims(pker_alsm)[1],ylims(pker_lsm)[1],ylims(pker_sm)[1],ylims(pker_rm)[1]),max(ylims(pker_alsm)[2],ylims(pker_lsm)[2],ylims(pker_sm)[2],ylims(pker_rm)[2]))
-
-pelbo_alsm = plot(lsm_elbo,title="Aug. LogSoftMax",markersize=0.0,linewidth=2.0)
-pelbo_lsm = plot(lsm_elbo,title="LogSoftMax",markersize=0.0,linewidth=2.0)
-pelbo_sm = plot(sm_elbo,title="SoftMax",markersize=0.0,linewidth=2.0)
-pelbo_rm = plot(rm_elbo,title="RobustMax",markersize=0.0,linewidth=2.0)
-elbo_lims = (min(ylims(pelbo_alsm)[1],ylims(pelbo_lsm)[1],ylims(pelbo_sm)[1],ylims(pelbo_rm)[1]),max(ylims(pelbo_alsm)[2],ylims(pelbo_lsm)[2],ylims(pelbo_sm)[2],ylims(pelbo_rm)[2]))
-
-pmet = plot(ylims!(pmet_alsm,met_lims),ylims!(pmet_lsm,met_lims),ylims!(pmet_sm,met_lims),ylims!(pmet_rm,met_lims))
-pker = plot(ylims!(pker_alsm,ker_lims),ylims!(pker_lsm,ker_lims),ylims!(pker_sm,ker_lims),ylims!(pker_rm,ker_lims))
-pelbo = plot(ylims!(pelbo_alsm,elbo_lims),ylims!(pelbo_lsm,elbo_lims),ylims!(pelbo_sm,elbo_lims),ylims!(pelbo_rm,elbo_lims))
-pmap = plot(alsm_map,lsm_map,sm_map,rm_map)
-
-methods_name = ["Aug. LogSoftMax","LogSoftMax","SoftMax","RobustMax"]
-pAUC = bar(methods_name,[AUC_alsm,AUC_lsm,AUC_sm,AUC_rm],lab="",title="MultiClass AUC")
-pll = bar(methods_name,[alsm_metrics[:ll].values[end],lsm_metrics[:ll].values[end],sm_metrics[:ll].values[end],rm_metrics[:ll].values[end]],lab="",title="Negative Log Likelihood")
-perr = bar(methods_name,[alsm_metrics[:err].values[end],lsm_metrics[:err].values[end],sm_metrics[:err].values[end],rm_metrics[:err].values[end]],lab="",title="Error rate")
-pmetfin = plot(perr,pll,pAUC)
-
-display(pmet)
-display(pmetfin)
-display(pker)
-display(pelbo)
-display(pmap)
-plot(pmet,pelbo)
-
-cd(@__DIR__)
-savefig(pmet,"resultslikelihood/metrics_noise$(art_noise).png")
-savefig(pmetfin,"resultslikelihood/metricsfinal_noise$(art_noise).png")
-savefig(pmap,"resultslikelihood/plot_noise$(art_noise).png")
-savefig(pelbo,"resultslikelihood/elbo_noise$(art_noise).png")
-savefig(pker,"resultslikelihood/kernel_params_noise$(art_noise).png")
+pelbo_alsm = plot(alsm_elbo,title="Hybrid LogSoftMax",markersize=0.0,linewidth=2.0)
+vline!(pelbo_alsm,[it_aug],lab="")
+display(pmet_alsm)
+display(pl_alsm)
+display(pv_alsm)
+display(ppar_alsm)
+display(pelbo_alsm)

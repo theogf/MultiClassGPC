@@ -165,25 +165,10 @@ end
 
 function trainhybrid(model,iterations,LogIt,param)
     tm.Model[i].train(iterations=param["nConjugateSteps"],callback=LogIt)
-    new_model = SparseLogisticSoftMaxMultiClass(tm.Model[i].X,tm.Model[i].y,Stochastic=tm.Model[i].Stochastic,m=tm.Model[i].nFeatures,batchsize=tm.Model[i].)
-    new_model.nEpochs = tm.Model[i].nEpochs
-    new_model.verbose = tm.Model[i].verbose
-    new_model.Stochastic = tm.Model[i].Stochastic
-    new_model.Autotuning = tm.Model[i].Autotuning
-    new_model.AutotuningFrequency = tm.Model[i].AutotuningFrequency
-    new_model.HyperParametersUpdated = tm.Model[i].HyperParametersUpdated
-    new_model.Trained = true
-    new_model.IndependentGPs = tm.Model[i].IndependentGPs
-    new_model.kernel = tm.Model[i].kernel
-    new_model.μ = tm.Model[i].μ
-    new_model.η₁ = tm.Model[i].η₁
-    new_model.Σ = tm.Model[i].Σ
-    new_model.η₂ = tm.Model[i].η₂
-    new_model.α = tm.Model[i].α
-
-
-
-
+    new_model = SparseLogisticSoftMaxMultiClass(tm.Model[i].X,tm.Model[i].y,Stochastic=tm.Model[i].Stochastic,m=tm.Model[i].nFeatures,batchsize=tm.Model[i].nSamplesUsed,IndependentGPs=tm.Model[i].IndependentGPs)
+    for field in fieldnames(tm.Model[i])
+        @eval new_model.$field = tm.Model[i].$field
+    end
 end
 
 "Function to obtain the weighted KMeans for one class"
