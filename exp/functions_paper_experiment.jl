@@ -46,6 +46,16 @@ function get_Dataset(datasetname::String)
     return (X,y,datasetname)
 end
 
+function get_train_test(datasetname::String)
+    println("Getting dataset")
+    X_train = h5read("../data/"*datasetname*".h5","data/X_train")
+    X_test = h5read("../data/"*datasetname*".h5","data/X_test")
+    y_train = h5read("../data/"*datasetname*".h5","data/y_train")
+    y_test = h5read("../data/"*datasetname*".h5","data/y_test")
+    println("Dataset loaded")
+    return (X_train,y_train,X_test,y_test,datasetname)
+end
+
 function initial_lengthscale(X)
     if size(X,1) > 10000
         D = pairwise(SqEuclidean(),X[sample(1:size(X,1),10000,replace=false),:]')
@@ -163,12 +173,18 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
     model[:anchor](sess)
 end
 
-function trainhybrid(model,iterations,LogIt,param)
-    tm.Model[i].train(iterations=param["nConjugateSteps"],callback=LogIt)
-    new_model = SparseLogisticSoftMaxMultiClass(tm.Model[i].X,tm.Model[i].y,Stochastic=tm.Model[i].Stochastic,m=tm.Model[i].nFeatures,batchsize=tm.Model[i].nSamplesUsed,IndependentGPs=tm.Model[i].IndependentGPs)
-    for field in fieldnames(tm.Model[i])
-        @eval new_model.$field = tm.Model[i].$field
+function trainhybrid(model,iterationsaug,iterations,callback,param)
+    model.train(iterations=iterationsaug,callback=callback)
+    new_model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(model.X,model.y,Stochastic=model.Stochastic,m=model.nFeatures,batchsize=model.nSamplesUsed,kernel=model.kernel[1],IndependentGPs=model.IndependentGPs,verbose=3,nEpochs=50,optimizer=0.5,Autotuning=true)
+    for field in fieldnames(typeof(model))
+        if field != :prev_params && field != :K_map && field != :g && field!= :h && field!= :τ && field != :Knn && field != :invK   && field != :train && field != :fstar && field != :predict && field != :predictproba && field != :elbo && field != :Autotuning
+            @eval $new_model.$field = $model.$field
+        end
     end
+    println(model.kernel)
+    model = new_model
+    model.train(iterations=iterations,callback=callback)
+    return model
 end
 
 "Function to obtain the weighted KMeans for one class"
@@ -196,10 +212,8 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
                 a[5] = -AugmentedGaussianProcesses.ELBO(model)
-
-                a[7] = 0#[OMGP.KernelFunctions.getvalue(k.param) for k in model.kernel]
+                a[7] = multiclassAUC(model,y_test,y_p)
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
-                # println("Variances :", [OMGP.getvalue(k.variance) for k in model.kernel])
                 a[6] = time_ns()
                 push!(LogArrays,a)
             end
@@ -220,7 +234,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
                 a[5] = session[:run](model[:likelihood_tensor])
-                a[7] = 0
+                a[7] = multiclassAUC(y_test,y_p)
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
                 a[6] = time_ns()
                 push!(LogArrays,a)

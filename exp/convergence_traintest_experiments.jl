@@ -33,21 +33,23 @@ ShowIntResults = true #Show intermediate time, and results for each fold
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
+test_train = args["oneRun"]
 dataset = "iris"
 # dataset = args["dataset"]
-(X_data,y_data,DatasetName) = get_Dataset(dataset)
+X_train,y_train,X_test,y_test = get_train_test(dataset)
 MaxIter = args["maxiter"] #Maximum number of iterations for every algorithm
 iter_points= vcat(1:9,10:5:99,100:50:999,1e3:1e3:(1e4-1),1e4:1e4:1e5)
 
 (nSamples,nFeatures) = size(X_data);
-nFold = 5;#args["nFold"]; #Choose the number of folds
-iFold = 2;#args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
+nFold = 1;#args["nFold"]; #Choose the number of folds
+iFold = 1;#args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
 N_test_max = 10000
-if nSamples/nFold > N_test_max
-        subset = StatsBase.sample(1:floor(Int64,nSamples/nFold),N_test_max,replace=false)
+if length(y_test) > N_test_max
+        subset = StatsBase.sample(1:length(y_test)),N_test_max,replace=false)
 end
-
+X_test = X_test[subset,:]
+y_test = y_test[subset]
 #Main Parameters
 main_param = DefaultParameters()
 main_param["nFeatures"] = nFeatures
@@ -94,54 +96,37 @@ for (name,testmodel) in TestModels
     println("Running $(testmodel.MethodName) on $(testmodel.DatasetName) dataset")
     #Initialize the results storage
     testmodel.Model = Array{Any}(undef,nFold)
-    testmodel.Results["Time"] = Vector{Vector{Float64}}(undef,nFold);
-    testmodel.Results["Accuracy"] = Vector{Vector{Float64}}(undef,nFold);
-    testmodel.Results["MeanL"] = Vector{Vector{Float64}}(undef,nFold);
-    testmodel.Results["MedianL"] = Vector{Vector{Float64}}(undef,nFold);
-    testmodel.Results["ELBO"] = Vector{Vector{Float64}}(undef,nFold);
-    for i in 1:iFold #Run over iFold folds of the data
-        if ShowIntResults
-            println("#### Fold number $i/$nFold ####")
-        end
-        X_test = X_data[fold_separation[i]:(fold_separation[i+1])-1,:]
-        y_test = y_data[fold_separation[i]:(fold_separation[i+1])-1]
-        if nSamples/nFold > N_test_max
-            X_test = X_test[subset,:]
-            y_test = y_test[subset,:]
-        end
-        X = X_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples)),:]
-        y = y_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples))]
-        CreateModel!(testmodel,i,X,y)
-        init_t = time_ns()
-        if testmodel.MethodType == "EPGPMC"
-            global LogArrays=copy(transpose(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)))
-            testmodel.Results["Time"][i] = LogArrays[1,:]
-        else
-            global LogArrays= hcat(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)...)
-            testmodel.Results["Time"][i] = TreatTime(init_t,LogArrays[1,:],LogArrays[6,:])
-            # testmodel.Results["Time"][i] = a .+ testmodel.Param["time_init"]
-        end
-        testmodel.Results["Accuracy"][i] = LogArrays[2,:]
-        testmodel.Results["MeanL"][i] = LogArrays[3,:]
-        testmodel.Results["MedianL"][i] = LogArrays[4,:]
-        testmodel.Results["ELBO"][i] = LogArrays[5,:]
-        if ShowIntResults
-            println("$(testmodel.MethodName) : Time  = $((time_ns()-init_t)*1e-9)s, accuracy : $(LogArrays[2,end])")
-        end
-        if doWrite && doSaveLastState
-            top_fold = "results";
-            if !isdir(top_fold); mkdir(top_fold); end;
-            WriteLastStateParameters(testmodel,top_fold,X_test,y_test,i)
-        end
-        #Reset the kernel
-        if testmodel.MethodName == "SVGPMC"
-            testmodel.Param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
-        elseif testmodel.MethodName == "SCGPMC"
-            println("SCGPMC : params : $([AugmentedGaussianProcesses.KernelModule.getlengthscales(k) for k in testmodel.Model[i].kernel])\n and coeffs :  $([AugmentedGaussianProcesses.KernelModule.getvariance(k) for k in testmodel.Model[i].kernel])")
-        end
-    end # of the loop over the folds
-    ProcessResults(testmodel,iFold)
-    println(size(testmodel.Results["Processed"]))
+    testmodel.Results["Time"] = Vector{Float64}}();
+    testmodel.Results["Accuracy"] = Vector{Float64}();
+    testmodel.Results["MeanL"] = Vector{Float64}();
+    testmodel.Results["MedianL"] = Vector{Float64}();
+    testmodel.Results["ELBO"] = Vector{Float64}();
+    testmodel.Results["AUC"] = Vector{Float64}();
+    CreateModel!(testmodel,i,X_train,y_train)
+    init_t = time_ns()
+    if testmodel.MethodType == "EPGPMC"
+        global LogArrays=copy(transpose(TrainModel!(testmodel,i,X_train,y_train,X_test,y_test,MaxIter,iter_points)))
+        testmodel.Results["Time"] = LogArrays[1,:]
+    else
+        global LogArrays= hcat(TrainModel!(testmodel,i,X_train,y_train,X_test,y_test,MaxIter,iter_points)...)
+        testmodel.Results["Time"] = TreatTime(init_t,LogArrays[1,:],LogArrays[6,:])
+    end
+    testmodel.Results["Accuracy"] = LogArrays[2,:]
+    testmodel.Results["MeanL"] = LogArrays[3,:]
+    testmodel.Results["MedianL"] = LogArrays[4,:]
+    testmodel.Results["ELBO"] = LogArrays[5,:]
+    testmodel.Results["AUC"] = LogArrays[7,:]
+    if ShowIntResults
+        println("$(testmodel.MethodName) : Time  = $((time_ns()-init_t)*1e-9)s, accuracy : $(LogArrays[2,end])")
+    end
+    #Reset the kernel
+    if testmodel.MethodName == "SVGPMC"
+        testmodel.Param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+    elseif testmodel.MethodName == "SCGPMC"
+        println("SCGPMC : params : $([AugmentedGaussianProcesses.KernelModule.getlengthscales(k) for k in testmodel.Model[i].kernel])\n and coeffs :  $([AugmentedGaussianProcesses.KernelModule.getvariance(k) for k in testmodel.Model[i].kernel])")
+    end
+    n = size(testmodel.Results["Time"])
+    testmodelm.Results["Processed"]= [testmodel.Results["Time"] zeros(n) testmodel.Results["MeanL"] zeros(n) testmodel.Results["MedianL"] zeros(n) testmodel.Results["ELBO"] zeros(n) testmodel.Results["AUC"] zeros(n)]
     if doWrite
         top_fold = "results";
         if !isdir(top_fold); mkdir(top_fold); end;

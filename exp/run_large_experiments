@@ -14,6 +14,6 @@ do
 	screen -S "${prefix}${i}" -d -m
 	sleep 0.1
 	screen -r "${prefix}${i}" -p 0 -X stuff "export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 ^M"
-	screen -r "${prefix}${i}" -p 0 -X stuff "julia -p 1 paper_experiments.jl $i --SCGP --SVGP --EPGP  -A -b 100 -M 100 -I 1000 ^M"
+	screen -r "${prefix}${i}" -p 0 -X stuff "julia -p 1 paper_experiments.jl $i --SCGP --SVGP --EPGP  -A -b 100 -M 500 -I 1000 --oneRun ^M"
 	echo "Created screen ${prefix}${i} and ran experiment"
 done

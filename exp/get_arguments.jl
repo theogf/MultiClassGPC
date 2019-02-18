@@ -58,6 +58,9 @@ function parse_commandline()
             help = "Number of fold which must be estimated (must be less or equal to nFold)"
             arg_type = Int
             default = 10
+        "--oneRun"
+            help = "Data is already divided in test and train sets"
+            action = :store_true
         "--shared_prior"
             help = "Determines if the GPs share the same prior"
             action = :store_true

@@ -1,6 +1,6 @@
 #########################################################################################################
 #
-
+clibrary('pROC')
 t0 <- NULL
 
 # Global variable for the updates of the hyper-parameters
@@ -291,7 +291,7 @@ REPORT <- TRUE
       cat("Epoch",  i, "Accuracy:", 1-(performance$err), " MeanL:", -(performance$neg_meanll), "\n")
 
       t0 <- t0 + (t_after - t_before)
-      value_log[nrow(value_log)+1,] <-list(i,proc.time()[1]-t0[1],1-(performance$err),-(performance$neg_meanll),-(performance$neg_medianll),elbo0)
+      value_log[nrow(value_log)+1,] <-list(i,proc.time()[1]-t0[1],1-(performance$err),-(performance$neg_meanll),-(performance$neg_medianll),elbo0,performance$auc)
       # write.table(t(c(performance$err, performance$neg_ll, proc.time() - t0)),
       #             file = paste("./results/time_outter_", CONT, ".txt", sep = ""), row.names = F, col.names = F, append = TRUE)
     }
@@ -784,13 +784,13 @@ evaluate_test_performance <- function(ret, X_test, Y_test, q = NULL) {
 
     prob_class <- rowSums(exp(values_k)) * (grid_k[ ,2 ] - grid_k[ ,1 ])
 
-
+    auc <- multiclass.roc(Y_test,prob_class)$auc
     err <- mean(apply(means, 1, which.max) != Y_test)
     neg_meanll <- -mean(log(prob_class))
     neg_medianll <- -median(log(prob_class))
 
 
-    list(err = err, neg_meanll = neg_meanll, neg_medianll = neg_medianll)
+    list(err = err, neg_meanll = neg_meanll, neg_medianll = neg_medianll, auc=auc)
 
 
 }

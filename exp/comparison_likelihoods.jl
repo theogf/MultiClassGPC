@@ -83,7 +83,7 @@ end
 N_dim=2
 N_iterations = 500
 m = 50
-art_noise = 0.3
+art_noise = 0.5
 
 X_clean = (rand(N_data,N_dim)*2.0).-1.0
 y = zeros(Int64,N_data); y_noise = similar(y)
