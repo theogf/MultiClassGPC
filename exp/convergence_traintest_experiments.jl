@@ -11,12 +11,12 @@ cd(dirname(@__FILE__))
 doSCGPMC = !args["SCGP"] #Sparse SCGPMC (sparsity)
 doHSCGPMC = args["HSCGP"]
 doEPGPMC = args["EPGP"]
-doSVGPMC = !args["SVGP"] #Sparse Variational GPMC (Hensmann)
+doSVGPMC = args["SVGP"] #Sparse Variational GPMC (Hensmann)
 doARMC = args["AR"]
 doTTGPMC = args["TTGP"]
 
 doBCGPMC = false
-doStochastic = args["stochastic"]
+doStochastic = !args["stochastic"]
 doAutotuning = !args["autotuning"]
 doPointOptimization = args["point-optimization"]
 
@@ -33,8 +33,7 @@ ShowIntResults = true #Show intermediate time, and results for each fold
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
-test_train = args["oneRun"]
-dataset = "iris"
+dataset = "mnist"
 # dataset = args["dataset"]
 X_train,y_train,X_test,y_test = get_train_test(dataset)
 MaxIter = args["maxiter"] #Maximum number of iterations for every algorithm
@@ -45,8 +44,9 @@ nFold = 1;#args["nFold"]; #Choose the number of folds
 iFold = 1;#args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
 N_test_max = 10000
+subset = []
 if length(y_test) > N_test_max
-        subset = StatsBase.sample(1:length(y_test)),N_test_max,replace=false)
+    subset = StatsBase.sample(1:length(y_test),N_test_max,replace=false)
 end
 X_test = X_test[subset,:]
 y_test = y_test[subset]
@@ -95,27 +95,29 @@ print(" max of $MaxIter iterations\n")
 for (name,testmodel) in TestModels
     println("Running $(testmodel.MethodName) on $(testmodel.DatasetName) dataset")
     #Initialize the results storage
-    testmodel.Model = Array{Any}(undef,nFold)
-    testmodel.Results["Time"] = Vector{Float64}}();
+    testmodel.Model = Array{Any}(undef,1)
+    testmodel.Results["Time"] = Vector{Float64}();
     testmodel.Results["Accuracy"] = Vector{Float64}();
     testmodel.Results["MeanL"] = Vector{Float64}();
     testmodel.Results["MedianL"] = Vector{Float64}();
     testmodel.Results["ELBO"] = Vector{Float64}();
     testmodel.Results["AUC"] = Vector{Float64}();
-    CreateModel!(testmodel,i,X_train,y_train)
+    CreateModel!(testmodel,1,X_train,y_train)
     init_t = time_ns()
     if testmodel.MethodType == "EPGPMC"
-        global LogArrays=copy(transpose(TrainModel!(testmodel,i,X_train,y_train,X_test,y_test,MaxIter,iter_points)))
+        global LogArrays=copy(transpose(TrainModel!(testmodel,1,X_train,y_train,X_test,y_test,MaxIter,iter_points)))
         testmodel.Results["Time"] = LogArrays[1,:]
+        testmodel.Results["AUC"] = LogArrays[6,:]
     else
-        global LogArrays= hcat(TrainModel!(testmodel,i,X_train,y_train,X_test,y_test,MaxIter,iter_points)...)
+        global LogArrays= hcat(TrainModel!(testmodel,1,X_train,y_train,X_test,y_test,MaxIter,iter_points)...)
         testmodel.Results["Time"] = TreatTime(init_t,LogArrays[1,:],LogArrays[6,:])
+        testmodel.Results["AUC"] = LogArrays[7,:]
     end
     testmodel.Results["Accuracy"] = LogArrays[2,:]
     testmodel.Results["MeanL"] = LogArrays[3,:]
     testmodel.Results["MedianL"] = LogArrays[4,:]
     testmodel.Results["ELBO"] = LogArrays[5,:]
-    testmodel.Results["AUC"] = LogArrays[7,:]
+
     if ShowIntResults
         println("$(testmodel.MethodName) : Time  = $((time_ns()-init_t)*1e-9)s, accuracy : $(LogArrays[2,end])")
     end

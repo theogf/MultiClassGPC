@@ -27,7 +27,10 @@ function parse_commandline()
             arg_type = Int
             default = 100
         "--SCGP"
-            help = "Run XGPC"
+            help = "Run SCGPC"
+            action = :store_true
+        "--HSCGP"
+            help = "Run HSCGPC"
             action = :store_true
         "--SVGP"
             help = "Run SVGPC"

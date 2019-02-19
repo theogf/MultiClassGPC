@@ -1,6 +1,6 @@
 #########################################################################################################
 #
-clibrary('pROC')
+library(pROC)
 t0 <- NULL
 
 # Global variable for the updates of the hyper-parameters
@@ -148,7 +148,7 @@ epMGPCInternal <- function(X, Y, m, Xbar_ini = NULL, log_sigma = rep(0, length(l
                    max_iters = 250, eps = 1e-2, start = NULL, X_test = NULL, Y_test = NULL) {
 
   t0 <<- proc.time()
-  value_log <- data.frame(Iter=numeric(),Time=numeric(),Accuracy=numeric(),MeanLL=numeric(),MedianLL=numeric(),ELBO=numeric())
+  value_log <- data.frame(Iter=numeric(),Time=numeric(),Accuracy=numeric(),MeanLL=numeric(),MedianLL=numeric(),ELBO=numeric(),AUC=numeric())
   if (!is.factor(Y)){Y <- factor(Y)}
   # We initialize the hyper-parameters
 REPORT <- TRUE

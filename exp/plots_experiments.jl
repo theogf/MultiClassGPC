@@ -7,12 +7,12 @@ if VERSION >= v"0.7.0-"
     using DelimitedFiles
 end
 NC =  Dict("EPGPMC"=>"SEP-MGPC","TTGPC"=>"Tensor Train GPC", "LogReg"=>"Linear Model",
-"SVGPMC"=>"SVI-MGPC","SXGPMC"=>"SC-MGPC","Accuracy"=>"Avg. Test Error","SXGPMCInd"=>"Independent Priors","SXGPMCShared"=>"Common Prior",
-"MedianL"=>"Avg. Median Neg.\n Test Log-Likelihood","MeanL"=>"Avg. Neg. Test\n Log-Likelihood")
-colors=Dict("SVGPMC"=>"blue","SXGPMC"=>"red","LogReg"=>"yellow","EPGPMC"=>"green", "TTGPC"=>"black","SXGPMCInd"=>"blue","SXGPMCShared"=>"red")
+"SVGPMC"=>"SVI-MGPC","SCGPMC"=>"SC-MGPC","HSCGPMC"=>"Hybrid SC-MGPC","Accuracy"=>"Avg. Test Error","SCGPMCInd"=>"Independent Priors","SCGPMCShared"=>"Common Prior",
+"MedianL"=>"Avg. Median Neg.\n Test Log-Likelihood","MeanL"=>"Avg. Neg. Test\n Log-Likelihood","AUC"=>"Multiclass AUC")
+colors=Dict("SVGPMC"=>"blue","SCGPMC"=>"red","HSCGPMC"=>"yellow","EPGPMC"=>"green", "TTGPC"=>"black","SCGPMCInd"=>"blue","SCGPMCShared"=>"red")
 linestyles=Dict(16=>":",32=>"--",64=>"-.",128=>"-")
 # linestyles=Dict(4=>"-",8=>":",10=>"-",16=>"-.",32=>"--",50=>":",64=>"-.",100=>"-.",128=>"-",200=>"--",256=>"--")
-metrics = Dict("Accuracy"=>3,"MeanL"=>5,"MedianL"=>7,"ELBO"=>9)
+metrics = Dict("Accuracy"=>3,"MeanL"=>5,"MedianL"=>7,"ELBO"=>9,"AUC"=>11)
 
 # location of the results
 c = "../cluster/AT_Experiment/"
@@ -23,38 +23,38 @@ la = "results/AT_Experiment/"
 ls = "results/S_Experiment/"
 f = "../final_results/"
 loc = Dict{String,Dict{String,String}}()
-loc["iris"] =           Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["wine"] =           Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["glass"] =          Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["vehicle"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["dna"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-# loc["satimage"] =          Dict("SXGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
-loc["satimage"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["segment"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["mnist"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["acoustic"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["covtype"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["combined"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["seismic"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["sensorless"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["cpu_act"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["shuttle"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["fashion-mnist"] =          Dict("SXGPMC"=>cs,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["Cod-rna"] =            Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["Covtype"] =            Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["Credit_card"] =        Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["Diabetis"] =           Dict("SXGPMC"=>l,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
-loc["Electricity"] =        Dict("SXGPMC"=>l,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
-loc["German"] =             Dict("SXGPMC"=>l,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
-loc["HIGGS"] =              Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["Ijcnn1"] =             Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["Mnist"] =              Dict("SXGPMC"=>l,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
-loc["Poker"] =              Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["Protein"] =            Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["Shuttle"] =            Dict("SXGPMC"=>l,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
-loc["SUSY"] =               Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["Vehicle"] =            Dict("SXGPMC"=>c,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
-loc["wXa"] =                Dict("SXGPMC"=>l,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
+loc["iris"] =           Dict("SCGPMC"=>la,"HSCGPMC"=>la,"SVGPMC"=>la,"EPGPMC"=>la,"TTGPC"=>c)
+loc["wine"] =           Dict("SCGPMC"=>la,"HSCGPMC"=>la,"SVGPMC"=>la,"EPGPMC"=>la,"TTGPC"=>c)
+loc["glass"] =          Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["vehicle"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["dna"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+# loc["satimage"] =          Dict("SCGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
+loc["satimage"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["segment"] =          Dict("SCGPMC"=>las,"HSCGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
+loc["mnist"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["acoustic"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["covtype"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["combined"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["seismic"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["sensorless"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["cpu_act"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["shuttle"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["fashion-mnist"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["Cod-rna"] =            Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["Covtype"] =            Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["Credit_card"] =        Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["Diabetis"] =           Dict("SCGPMC"=>l,"HSCGPMC"=>la,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
+loc["Electricity"] =        Dict("SCGPMC"=>l,"HSCGPMC"=>la,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
+loc["German"] =             Dict("SCGPMC"=>l,"HSCGPMC"=>la,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
+loc["HIGGS"] =              Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["Ijcnn1"] =             Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["Mnist"] =              Dict("SCGPMC"=>l,"HSCGPMC"=>la,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
+loc["Poker"] =              Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["Protein"] =            Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["Shuttle"] =            Dict("SCGPMC"=>l,"HSCGPMC"=>la,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
+loc["SUSY"] =               Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["Vehicle"] =            Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
+loc["wXa"] =                Dict("SCGPMC"=>l,"HSCGPMC"=>la,"SVGPMC"=>l,"EPGPMC"=>l,"TTGPC"=>c)
 
 
 gwidth = 2.0
@@ -66,6 +66,8 @@ function DataConversion(array,name)
         return -array
     elseif name == "MeanL"
         return -array
+    elseif name == "AUC"
+        return array
     end
 end
 
@@ -80,19 +82,19 @@ function DoubleAxisPlot(metric,MPoints=[5,10,20,50,75,100,150,200,300,400])
     strat = ["Ind","Shared"]
     Nm = length(MPoints)
     percent = [20,50,75,100,150,200,300,400]
-    p = Dict("SXGPMCInd"=>Array{Float64,2}(undef,length(MPoints),2),"SXGPMCShared"=>Array{Float64,2}(undef,length(MPoints),2))
+    p = Dict("SCGPMCInd"=>Array{Float64,2}(undef,length(MPoints),2),"SCGPMCShared"=>Array{Float64,2}(undef,length(MPoints),2))
     for T in strat
         for (i,M) in enumerate(MPoints)
-            r = readdlm("../cluster/results_M$(M)_$(T)/AT_Experiment/$(dataset)Dataset/Results_SXGPMC.txt")
-            p["SXGPMC"*T][i,:] = r[end,[metrics[metric],1]]
+            r = readdlm("../cluster/results_M$(M)_$(T)/AT_Experiment/$(dataset)Dataset/Results_SCGPMC.txt")
+            p["SCGPMC"*T][i,:] = r[end,[metrics[metric],1]]
         end
-        p["SXGPMC"*T][:,1]= DataConversion(p["SXGPMC"*T][:,1],metric)
+        p["SCGPMC"*T][:,1]= DataConversion(p["SCGPMC"*T][:,1],metric)
     end
 
     fig, ax1 = plt[:subplots]()
     fig[:set_size_inches](16,8)
-    p1 = ax1[:plot](MPoints[1:Nm],p["SXGPMCInd"][:,1],label="",color="red",marker="x",linestyle="-",linewidth=2.0*scale,markersize=4.0*scale)
-    p2 = ax1[:plot](MPoints[1:Nm],p["SXGPMCShared"][:,1],label="",color="blue",marker="o",linestyle="-",linewidth=2.0*scale,markersize=4.0*scale)
+    p1 = ax1[:plot](MPoints[1:Nm],p["SCGPMCInd"][:,1],label="",color="red",marker="x",linestyle="-",linewidth=2.0*scale,markersize=4.0*scale)
+    p2 = ax1[:plot](MPoints[1:Nm],p["SCGPMCShared"][:,1],label="",color="blue",marker="o",linestyle="-",linewidth=2.0*scale,markersize=4.0*scale)
     ax1[:set_xlabel]("# inducing points",fontsize=20.0*scale)
     ax1[:set_ylabel](NC[metric]*"\n(solid line)",fontsize=20.0*scale)
     ax1[:tick_params]('y',fontsize=15.0*scale)
@@ -100,8 +102,8 @@ function DoubleAxisPlot(metric,MPoints=[5,10,20,50,75,100,150,200,300,400])
     yticks(fontsize=15.0*scale)
     ax2 = ax1[:twinx]()
 
-    p4 = ax2[:semilogy](MPoints[1:Nm],p["SXGPMCInd"][:,2],color="red",marker="x",linestyle="--",linewidth=2.0*scale,markersize=4.0*scale)
-    p3 = ax2[:semilogy](MPoints[1:Nm],p["SXGPMCShared"][:,2],color="blue",marker="o",linestyle="--",linewidth=2.0*scale,markersize=4.0*scale)
+    p4 = ax2[:semilogy](MPoints[1:Nm],p["SCGPMCInd"][:,2],color="red",marker="x",linestyle="--",linewidth=2.0*scale,markersize=4.0*scale)
+    p3 = ax2[:semilogy](MPoints[1:Nm],p["SCGPMCShared"][:,2],color="blue",marker="o",linestyle="--",linewidth=2.0*scale,markersize=4.0*scale)
     ax2[:set_ylabel]("Training time in Seconds\n(dashed line)",fontsize=18.0*scale)
     ax2[:tick_params]('y',fontsize=20.0*scale)
     yticks([10.0,100.0,1000.0],fontsize=15.0*scale)
@@ -119,13 +121,13 @@ function InducingPointsComparison(metric,MPoints=[8,15,38,76,152,381];step=1)
 # function InducingPointsComparison(metric,MPoints=[21,42,104,208,416,1040,2079];step=1)
     dataset="vehicle"
     figure("Comparison of inducing points accuracy and time",figsize=(16,8)); clf();
-    p = Dict("SXGPMCInd"=>Array{Any,1}(),"SXGPMCShared"=>Array{Any,1}())
-    lab = Dict("SXGPMCInd"=>Array{Any,1}(),"SXGPMCShared"=>Array{Any,1}())
+    p = Dict("SCGPMCInd"=>Array{Any,1}(),"SCGPMCShared"=>Array{Any,1}())
+    lab = Dict("SCGPMCInd"=>Array{Any,1}(),"SCGPMCShared"=>Array{Any,1}())
     strat = ["Ind","Shared"]
     for T in strat
         for M in MPoints
             Results = Dict{String,Any}()
-            Results["SXGPMC"*T] = readdlm("../cluster/results_M$(M)_$(T)/AT_Experiment/$(dataset)Dataset/Results_SXGPMC.txt")
+            Results["SCGPMC"*T] = readdlm("../cluster/results_M$(M)_$(T)/AT_Experiment/$(dataset)Dataset/Results_SCGPMC.txt")
             for (name,res) in Results
                 res[:,metrics[metric]] = DataConversion(res[:,metrics[metric]],metric)
                 push!(lab[name],NC[name]*" M=$M")
@@ -140,7 +142,7 @@ function InducingPointsComparison(metric,MPoints=[8,15,38,76,152,381];step=1)
     yticks(fontsize=18.0)
     title(dataset,fontsize=24.0,fontweight="semibold")
 
-    legend([p["SXGPMCInd"];p["SXGPMCShared"]],[lab["SXGPMCInd"];lab["SXGPMCShared"]],fontsize=18.0)
+    legend([p["SCGPMCInd"];p["SCGPMCShared"]],[lab["SCGPMCInd"];lab["SCGPMCShared"]],fontsize=18.0)
     # xlim([0.03,4500])
     # ylim([-0.01,0.15])
     tight_layout()
@@ -163,32 +165,34 @@ function SmoothIt(x;window=3)
 end
 
 function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=false,corrections=false)
-    Results = Dict{String,Any}();
+    global Results = Dict{String,Any}();
     println("Working on dataset $dataset")
     # colors=Dict("GPC"=>"b","SPGGPC"=>"r","LogReg"=>"y")
     time_line = [1:5:9;10:5:10;100:50:999;1000:1000:9999;10000:10000:50000]
     time_line_EP = [1:1:99;100:10:999;1000:100:9999;10000:1000:40000]
-    # Dict("SVGPMC"=>[1:1:99;100:10:999;1000:100:9999;10000:1000:20000],"SXGPMC"=>[1:1:99;100:10:999;1000:100:20000])
+    # Dict("SVGPMC"=>[1:1:99;100:10:999;1000:100:9999;10000:1000:20000],"SCGPMC"=>[1:1:99;100:10:999;1000:100:20000])
     p = Dict{String,Any}()
 
-    FinalMetrics = ["MeanL","Accuracy"]
+    FinalMetrics = ["MeanL","AUC"]
+    # FinalMetrics = ["MeanL","Accuracy"]
 
 
     # NC =  Dict("LogReg"=>"Linear Model","GPC"=>"SVGPMC","SPGGPC"=>"X-GPC","Accuracy"=>"Avg. Test Error","MedianL"=>"Avg. Median Neg. Test Log likelihood")
     Results["SVGPMC"] = readdlm(loc[dataset]["SVGPMC"]*dataset*"Dataset/Results_SVGPMC.txt")
-    Results["SXGPMC"] = readdlm(loc[dataset]["SXGPMC"]*dataset*"Dataset/Results_SXGPMC.txt")
+    Results["SCGPMC"] = readdlm(loc[dataset]["SCGPMC"]*dataset*"Dataset/Results_SCGPMC.txt")
+    # Results["HSCGPMC"] = readdlm(loc[dataset]["HSCGPMC"]*dataset*"Dataset/Results_HSCGPMC.txt")
     Results["EPGPMC"] = readdlm(loc[dataset]["EPGPMC"]*dataset*"Dataset/Results_EPGPMC.txt")
-    if !in(dataset,["iris","glass","wine"])
-        Results["SVGPMC"][:,1] = Results["SVGPMC"][:,1] .- Float64(readdlm("../cluster/time_correction/"*dataset*"SVGPMC.txt")[1])
-    end
-    if dataset == "mnist"
-        Results["SXGPMC"][:,1] = Results["SXGPMC"][:,1] .- Float64(readdlm("../cluster/time_correction/$(dataset)SXGPMC.txt")[1])
-    end
+    # if !in(dataset,["iris","glass","wine"])
+    #     Results["SVGPMC"][:,1] = Results["SVGPMC"][:,1] .- Float64(readdlm("../cluster/time_correction/"*dataset*"SVGPMC.txt")[1])
+    # end
+    # if dataset == "mnist"
+    #     Results["SCGPMC"][:,1] = Results["SCGPMC"][:,1] .- Float64(readdlm("../cluster/time_correction/$(dataset)SCGPMC.txt")[1])
+    # end
     # Results["TTGPC"] = readdlm(loc[dataset]["TTGPC"]*dataset*"Dataset/Results_TTGPC.txt")
     # Results["LogReg"] = readdlm(loc[dataset]["LogReg"]*dataset*"Dataset/Results_LogReg.txt")
 
-    maxx = max(Results["SVGPMC"][end,1],Results["EPGPMC"][end,1],Results["SXGPMC"][end,1])#,Results["TTGPC"][end,1])
-    minx = min(Results["SVGPMC"][1,1],Results["EPGPMC"][1,1],Results["SXGPMC"][1,1])#,Results["TTGPC"][1,1])
+    maxx = maximum((x->x[end,1]).(values(Results)))#,Results["TTGPC"][end,1])
+    minx = minimum((x->x[1,1]).(values(Results)))#,Results["TTGPC"][1,1])
     # logreg = zeros(2,10)
     # logreg[1,:] = Results["LogReg"]; logreg[2,2:end] = Results["LogReg"][2:end]; logreg[2,1] = maxx;
     # println(logreg)
@@ -202,36 +206,35 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     if corrections
         if dataset == "aXa"
             #Divide acc stderr by 2
-            Results["SXGPMC"][:,4] *= 0.5;
+            Results["SCGPMC"][:,4] *= 0.5;
             Results["SVGPMC"][:,4] *= 0.5;
             Results["EPGPMC"][:,4] *= 0.5;
         elseif dataset == "Bank_marketing"
             #Divide acc stderr by 2
-            Results["SXGPMC"][:,4] *= 0.5;
+            Results["SCGPMC"][:,4] *= 0.5;
             Results["SVGPMC"][:,4] *= 0.5
             Results["EPGPMC"][:,4] *= 0.5
-            Results["SXGPMC"][:,6] *= 0.5;
+            Results["SCGPMC"][:,6] *= 0.5;
             Results["SVGPMC"][:,6] *= 0.5
             Results["EPGPMC"][:,6] *= 0.5
         elseif dataset == "Electricity"
             #Divide acc stderr by 2
-            Results["SXGPMC"][:,4] *= 0.5;
+            Results["SCGPMC"][:,4] *= 0.5;
             Results["SVGPMC"][:,4] *= 0.5
             Results["EPGPMC"][:,4] *= 0.5
         elseif dataset == "German"
-            Results["SXGPMC"][:,4] *= 0.5;
+            Results["SCGPMC"][:,4] *= 0.5;
             Results["SVGPMC"][:,4] *= 0.5;
             Results["EPGPMC"][:,4] *= 0.5;
-            Results["SXGPMC"][:,6] *= 0.5;
+            Results["SCGPMC"][:,6] *= 0.5;
             Results["SVGPMC"][:,6] *= 0.5;
             Results["EPGPMC"][:,6] *= 0.5;
         end
     end
     if time
-        time_line = Dict("SVGPMC"=>Results["SVGPMC"][:,1],"SXGPMC"=>Results["SXGPMC"][:,1],"EPGPMC"=>Results["EPGPMC"][:,1])#,"LogReg"=>Results["LogReg"][:,1],"TTGPC"=>Results["TTGPC"][:,1])
+        time_line = Dict(key=>Results[key][:,1] for key in keys(Results))
     else
-        time_line = Dict("SVGPMC"=>time_line[1:length(Results["SVGPMC"][:,1])],"SXGPMC"=>time_line[1:length(Results["SXGPMC"][:,1])],
-        "EPGPMC"=>time_line[1:length(Results["EPGPMC"][:,1])])#,"LogReg"=>[1,10000],"TTGPC"=>time_line[1:length(Results["TTGPC"][:,1])])
+        time_line = Dict(key=>timeline[1:length(Results[key][:,1])] for key in keys(Results))
     end
     if metric == "Final"
         iter=1
@@ -263,8 +266,8 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
 		else
 			legpos = 1
 		end
-                legend([p["SXGPMC"];p["SVGPMC"];p["EPGPMC"]],#;p["TTGPC"];p["LogReg"]],
-                [NC["SXGPMC"]*" (ours)";NC["SVGPMC"];NC["EPGPMC"]],fontsize=20.0,loc=legpos)#;NC["TTGPC"];NC["LogReg"]])
+                legend([p[key] for key in keys(Results)],
+                [NC[key] for key in keys(Results)],fontsize=20.0,loc=legpos)#;NC["TTGPC"];NC["LogReg"]])
                 giter-=1
             end
         end
@@ -323,7 +326,7 @@ DatasetNameCorrection = Dict("iris"=>"Iris","wine"=>"Wine","glass"=>"Glass","veh
                             "German"=>"German","HIGGS"=>"Higgs","Ijcnn1"=>"IJCNN","Mnist"=>"Mnist","Shuttle"=>"Shuttle","SUSY"=>"SUSY","Vehicle"=>"Vehicle","wXa"=>"wXa")
 function Table()
     dataset_list = readdlm("file_list_finished_table")
-    Methods = ["SXGPMC","SVGPMC","EPGPMC"]
+    Methods = ["SCGPMC","SVGPMC","EPGPMC"]
     MetricNames = Dict("Error"=>1,"NLL"=>3)
     MetricsOrder = ["Error","NLL"]
     full_table = Array{String,1}()
@@ -392,7 +395,7 @@ h1 = 3600
 global budget = Dict("acoustic"=>e2, "combined"=>e2, "covtype"=>e2, "dna"=>e2, "glass"=>e1, "iris"=>e1, "mnist"=>e3, "satimage"=>e2, "segment"=>e2, "seismic"=>e2, "sensorless"=>e2, "shuttle" =>e2, "vehicle"=>e2, "wine"=>e1 )
 
 function ConvergenceDetector(dataset;time=true)
-    Methods = ["SVGPMC","SXGPMC","EPGPMC"]
+    Methods = ["SVGPMC","SCGPMC","EPGPMC"]
     ConvResults = Dict{String,Any}()
     small = false
     if in(["iris","wine","glass"],dataset)
@@ -408,8 +411,8 @@ function ConvergenceDetector(dataset;time=true)
         t = Res[:,1]
         if m == "SVGPMC"
             t -= Float64(readdlm("../cluster/time_correction/$(dataset)SVGPMC.txt")[1])
-        elseif m == "SXGPMC" && dataset == "mnist"
-            t -= Float64(readdlm("../cluster/time_correction/$(dataset)SXGPMC.txt")[1])
+        elseif m == "SCGPMC" && dataset == "mnist"
+            t -= Float64(readdlm("../cluster/time_correction/$(dataset)SCGPMC.txt")[1])
         end
         i_budget = findfirst(t.>b)
         if i_budget === nothing
@@ -424,8 +427,8 @@ function ConvergenceDetector(dataset;time=true)
 end
 
 Handpicked = Dict("aXa"=>Dict("EPGPMC"=>197), "Bank_marketing"=>Dict(), "Click_Prediction"=>Dict(),
-                    "Cod-rna"=>Dict(),"Covtype"=>Dict(),"Diabetis"=>Dict("SXGPMC"=>82,"SVGPMC"=>236),"Electricity"=>Dict(),
-                    "German"=>Dict("SXGPMC"=>86,"SVGPMC"=>282),"HIGGS"=>Dict(),"Ijcnn1"=>Dict(),"Mnist"=>Dict(),"Shuttle"=>Dict(),
+                    "Cod-rna"=>Dict(),"Covtype"=>Dict(),"Diabetis"=>Dict("SCGPMC"=>82,"SVGPMC"=>236),"Electricity"=>Dict(),
+                    "German"=>Dict("SCGPMC"=>86,"SVGPMC"=>282),"HIGGS"=>Dict(),"Ijcnn1"=>Dict(),"Mnist"=>Dict(),"Shuttle"=>Dict(),
                     "SUSY"=>Dict(),"wXa"=>Dict())
 
 

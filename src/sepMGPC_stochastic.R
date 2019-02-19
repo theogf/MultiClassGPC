@@ -1,6 +1,6 @@
 #########################################################################################################
 #
-clibrary('pROC')
+library(pROC)
 
 t0 <- NULL
 optim_params <- NULL
@@ -551,7 +551,7 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
                            print_interval = ceiling(nrow(X)/n_minibatch)) {
 
     t0 <<- proc.time()
-    value_log <- data.frame(Iter=numeric(),Time=numeric(),Accuracy=numeric(),MeanLL=numeric(),MedianLL=numeric(),ELBO=numeric())
+    value_log <- data.frame(Iter=numeric(),Time=numeric(),Accuracy=numeric(),MeanLL=numeric(),MedianLL=numeric(),ELBO=numeric(),AUC=numeric())
     if (!is.factor(Y)){Y <- factor(Y)}
     # We initialize the hyper-parameters
     REPORT <- TRUE

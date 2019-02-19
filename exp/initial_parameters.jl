@@ -19,13 +19,13 @@ function DefaultParameters()
 end
 
 #Create a default parameters dictionary for CGPC
-function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,independent=true,main_param=DefaultParameters())
+function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,independent=true,dohybrid=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
   param["nSamples"] = main_param["nSamples"]
   param["Stochastic"] = Stochastic #Is the method stochastic
   param["Sparse"] = Sparse #Is the method using inducing points
-  param["ALR"] = ALR #Is the method using adpative learning rate (in case of the stochastic case)
+  param["ALR"] = ALR #Is the method using adaptive learning rate (in case of the stochastic case)
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
   param["ATFrequency"] = param["Stochastic"] ? 3 : 1 #Number of iterations between every autotuning
@@ -43,11 +43,12 @@ function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
   param["M"] = main_param["M"] #Number of inducing points
   param["γ"] = main_param["γ"] #Variance of introduced noise
   param["independent"] = independent #Are GPs independent
+  param["nConjugateSteps"] = 200
   return param
 end
 
 #Create a default parameters dictionary for SVGPMC (similar to CGPMC)
-function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters(),dohybrid=false)
+function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
   param["nSamples"] = main_param["nSamples"]
@@ -65,7 +66,6 @@ function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters(),dohybr
   param["M"] = main_param["M"]
   param["SmoothingWindow"] = main_param["Window"]
   param["ConvCriter"] = main_param["ConvCriter"]
-  param["nConjugateSteps"] = 200
   return param
 end
 

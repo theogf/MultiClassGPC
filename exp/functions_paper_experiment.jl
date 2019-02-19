@@ -173,7 +173,7 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
     model[:anchor](sess)
 end
 
-function trainhybrid(model,iterationsaug,iterations,callback,param)
+function trainhybrid(model,iterationsaug,iterations,callback)
     model.train(iterations=iterationsaug,callback=callback)
     new_model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(model.X,model.y,Stochastic=model.Stochastic,m=model.nFeatures,batchsize=model.nSamplesUsed,kernel=model.kernel[1],IndependentGPs=model.IndependentGPs,verbose=3,nEpochs=50,optimizer=0.5,Autotuning=true)
     for field in fieldnames(typeof(model))
@@ -193,7 +193,7 @@ function Ind_KMeans(N_inst,Y,X,m,i)
     K_corr = nSamples/N_inst[i]-1.0
     weights = ones(nSamples)
     weights[Y.==i] = weights[Y.==i].*(K_corr-1.0).+(1.0)
-    return KMeansInducingPoints(X,m,10,weights=weights)
+    return AugmentedGaussianProcesses.KMeansInducingPoints(X,m,nMarkov=10,kweights=weights)
 end
 
 function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points)
@@ -212,14 +212,18 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
                 a[5] = -AugmentedGaussianProcesses.ELBO(model)
-                a[7] = multiclassAUC(model,y_test,y_p)
+                y_pred = Float64.(zero(y_test))
+                for i in unique(y_test)
+                    y_pred[y_test.==i] = y_p[Symbol(i)][y_test.==i]
+                end
+                a[7] = rcopy(R"multiclass.roc($y_test,$y_pred)$auc")
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
                 a[6] = time_ns()
                 push!(LogArrays,a)
             end
         end
         if tm.MethodType == "HSCGPMC"
-            trainhybrid(tm.Model[i],iterations,LogIt)
+            trainhybrid(tm.Model[i],tm.Param["nConjugateSteps"],iterations,LogIt)
         else
             tm.Model[i].train(iterations=iterations,callback=LogIt)
         end
@@ -234,7 +238,12 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
                 a[5] = session[:run](model[:likelihood_tensor])
-                a[7] = multiclassAUC(y_test,y_p)
+                y_pred = Float64.(zero(y_test))
+                bias = count(unique(y_test).==0)!=0
+                for i in unique(y_test)
+                    y_pred[y_test.==i] = y_p[y_test.==i,i+bias]
+                end
+                a[7] = rcopy(R"multiclass.roc($y_test,$y_pred)$auc")
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
                 a[6] = time_ns()
                 push!(LogArrays,a)
@@ -297,13 +306,15 @@ end
 
 function ProcessResults(tm::TestingModel,iFold)
     #Find maximum length
-    NMax = maximum(length.(tm.Results["Time"][1:iFold]))
-    NFolds = length(tm.Results["Time"][1:iFold])
+    iFold = length(tm.Results["Time"])
+    NMax = maximum(length.(tm.Results["Time"]))
+    NFolds = length(tm.Results["Time"])
     Mtime = zeros(NMax); time= []
     Macc = zeros(NMax); acc= []
     Mmeanl = zeros(NMax); meanl= []
     Mmedianl = zeros(NMax); medianl= []
     Melbo = zeros(NMax); elbo = []
+    Mauc = zeros(NMax); auc = []
     for i in 1:iFold
         DiffN = NMax - length(tm.Results["Time"][i])
         if DiffN != 0
@@ -312,31 +323,35 @@ function ProcessResults(tm::TestingModel,iFold)
             meanl = [tm.Results["MeanL"][i];tm.Results["MeanL"][i][end]*ones(DiffN)]
             medianl = [tm.Results["MedianL"][i];tm.Results["MedianL"][i][end]*ones(DiffN)]
             elbo = [tm.Results["ELBO"][i];tm.Results["ELBO"][i][end]*ones(DiffN)]
+            auc = [tm.Results["AUC"][i];tm.Results["AUC"][i][end]*ones(DiffN)]
         else
             time = tm.Results["Time"][i];
             acc = tm.Results["Accuracy"][i];
             meanl = tm.Results["MeanL"][i];
             medianl = tm.Results["MedianL"][i];
             elbo = tm.Results["ELBO"][i];
+            auc = tm.Results["AUC"][i];
         end
         Mtime = hcat(Mtime,time)
         Macc = hcat(Macc,acc)
         Mmeanl = hcat(Mmeanl,meanl)
         Mmedianl = hcat(Mmedianl,medianl)
         Melbo = hcat(Melbo,elbo)
+        Mauc = hcat(Mauc,auc)
     end
     if size(Mtime,2)!=2
       Mtime[:,2] = Mtime[:,3]
     end
     Mtime = Mtime[:,2:end];  Macc = Macc[:,2:end]
     Mmeanl = Mmeanl[:,2:end]; Mmedianl = Mmedianl[:,2:end]
-    Melbo = Melbo[:,2:end];
+    Melbo = Melbo[:,2:end]; Mauc = Mauc[:,2:end];
     tm.Results["Time"] = Mtime;
     tm.Results["Accuracy"] = Macc;
     tm.Results["MeanL"] = Mmeanl
     tm.Results["MedianL"] = Mmedianl
     tm.Results["ELBO"] = Melbo
-    tm.Results["Processed"]= [vec(mean(Mtime,dims=2)) vec(std(Mtime,dims=2)) vec(mean(Macc,dims=2)) vec(std(Macc,dims=2)) vec(mean(Mmeanl,dims=2)) vec(std(Mmeanl,dims=2)) vec(mean(Mmedianl,dims=2)) vec(std(Mmedianl,dims=2)) vec(mean(Melbo,dims=2)) vec(std(Melbo,dims=2))]
+    tm.Results["AUC"] = Mauc
+    tm.Results["Processed"]= [vec(mean(Mtime,dims=2)) vec(std(Mtime,dims=2)) vec(mean(Macc,dims=2)) vec(std(Macc,dims=2)) vec(mean(Mmeanl,dims=2)) vec(std(Mmeanl,dims=2)) vec(mean(Mmedianl,dims=2)) vec(std(Mmedianl,dims=2)) vec(mean(Melbo,dims=2)) vec(std(Melbo,dims=2)) vec(mean(Mauc,dims=2)) vec(std(Mauc,dims=2))]
 end
 
 function PrintResults(results,method_name,writing_order)
