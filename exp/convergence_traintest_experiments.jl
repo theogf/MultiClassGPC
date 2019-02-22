@@ -134,6 +134,7 @@ for (name,testmodel) in TestModels
     end
     n = size(testmodel.Results["Time"])
     testmodel.Results["Processed"]= [testmodel.Results["Time"] zeros(n) testmodel.Results["Accuracy"] zeros(n) testmodel.Results["MeanL"] zeros(n) testmodel.Results["MedianL"] zeros(n) testmodel.Results["ELBO"] zeros(n) testmodel.Results["AUC"] zeros(n)]
+    testmodel.model
     if doWrite
         top_fold = "results";
         if !isdir(top_fold); mkdir(top_fold); end;

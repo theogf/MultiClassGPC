@@ -355,6 +355,14 @@ function ProcessResults(tm::TestingModel,iFold)
     tm.Results["Processed"]= [vec(mean(Mtime,dims=2)) vec(std(Mtime,dims=2)) vec(mean(Macc,dims=2)) vec(std(Macc,dims=2)) vec(mean(Mmeanl,dims=2)) vec(std(Mmeanl,dims=2)) vec(mean(Mmedianl,dims=2)) vec(std(Mmedianl,dims=2)) vec(mean(Melbo,dims=2)) vec(std(Melbo,dims=2)) vec(mean(Mauc,dims=2)) vec(std(Mauc,dims=2))]
 end
 
+function SavePredictions(tm::TestingModel,y_pred,y_test,location)
+    fold = String(location*"/"*(doAutotuning ? "AT_" : "")*(doStochastic ? "S_" : "")*"Experiment")
+    if !isdir(fold); mkdir(fold); end;
+    fold = fold*"/"*tm.DatasetName*"Dataset"
+    if !isdir(fold); mkdir(fold); end;
+    writedlm(String(fold*"/Predictions_"*tm.MethodName*".txt"),hcat(y_test,y_pred))
+end
+
 function PrintResults(results,method_name,writing_order)
   println("Model $(method_name) : ")
   i = 1
