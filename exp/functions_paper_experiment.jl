@@ -203,6 +203,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
             if in(iter,iter_points)
                 a = Vector{Any}(undef,7)
                 a[1] = time_ns()
+                AugmentedGaussianProcesses.computeMatrices!(model)
                 # y_p = OMGP.multiclasspredict(model,X_test,true)
                 y_p = AugmentedGaussianProcesses.multiclasspredictproba(model,X_test,false)
                 # y_exp = OMGP.multiclasssoftmax(model,X_test,false)

@@ -78,7 +78,7 @@ TestModels = Dict{String,TestingModel}()
 
 if doBCGPMC; TestModels["BCGPMC"] = TestingModel("BCGPMC",DatasetName,ExperimentName,"BCGPMC",BCGPMCParam); end;
 if doSCGPMC; TestModels["SCGPMC"] = TestingModel("SCGPMC",DatasetName,ExperimentName,"SCGPMC",SCGPMCParam); end;
-if doHSCGPMC; TestModels["HSCGPMC"] = TestingModel("HSCGPMC",DatasetName,ExperimentName,"HSCGPMC",HSCGPMCParam); end;
+if doHSCGPMC; TestModels["HSCGPMC"] = TestingModel("HSCGPMC",DatasetName,ExperimentName,"SCGPMC",HSCGPMCParam); end;
 if doSVGPMC;   TestModels["SVGPMC"]   = TestingModel("SVGPMC",DatasetName,ExperimentName,"SVGPMC",SVGPMCParam);      end;
 if doEPGPMC; TestModels["EPGPMC"] = TestingModel("EPGPMC",DatasetName,ExperimentName,"EPGPMC",EPGPMCParam); end;
 
@@ -100,6 +100,12 @@ for (name,testmodel) in TestModels
     testmodel.Results["ELBO"] = Vector{Vector{Float64}}();
     testmodel.Results["AUC"] = Vector{Vector{Float64}}();
     for i in 1:iFold #Run over iFold folds of the data
+        #Remove time overhead
+        if testmodel.MethodType == "SCGPMC" && i== 1
+            CreateModel!(testmodel,1,X_train,y_train)
+            TrainModel!(testmodel,1,X_train,y_train,X_test,y_test,10,0)
+            println("Overhead time removed")
+        end
         if ShowIntResults
             println("#### Fold number $i/$nFold ####")
         end

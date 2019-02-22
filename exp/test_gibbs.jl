@@ -135,8 +135,8 @@ lparams = MVHistory()
 vparams = MVHistory()
 params = MVHistory()
 
-model = AugmentedGaussianProcesses.GibbsSamplerMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=1,IndependentGPs=true)
-model.train(iterations=400)
+model = AugmentedGaussianProcesses.GibbsSamplerMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=1,IndependentGPs=true,burninsamples=0)
+model.train(iterations=1000)
 
 # alsmmodel.train(iterations=10)
 # @profiler alsmmodel.train(iterations=10)
@@ -144,7 +144,7 @@ model.train(iterations=400)
 # @btime AugmentedGaussianProcesses.Gradient_Expec(alsmmodel)
 global py_alsm = model.predictproba(X_test)
 global y_alsm = model.predict(X_test)
-# println("Expected model Accuracy is $(acc(y_test,y_alsm)) and loglike : $(loglike(y_test,py_alsm)) in $t_alsm s")
+println("Expected model Accuracy is $(acc(y_test,y_alsm)) and loglike : $(loglike(y_test,py_alsm))")#" in $t_alsm s")
 ##
 map = title!(callbackplot(model,2),"Hybrid LogSoftMax");
 metrics = deepcopy(metrics)

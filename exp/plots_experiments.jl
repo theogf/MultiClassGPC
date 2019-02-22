@@ -39,7 +39,7 @@ loc["seismic"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=
 loc["sensorless"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["cpu_act"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["shuttle"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["fashion-mnist"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["fashion-mnist"] =          Dict("SCGPMC"=>las,"HSCGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
 loc["Cod-rna"] =            Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
 loc["Covtype"] =            Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
 loc["Credit_card"] =        Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
@@ -165,6 +165,7 @@ function SmoothIt(x;window=3)
 end
 
 function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=false,corrections=false)
+    cd(@__DIR__)
     global Results = Dict{String,Any}();
     println("Working on dataset $dataset")
     # colors=Dict("GPC"=>"b","SPGGPC"=>"r","LogReg"=>"y")
@@ -173,8 +174,8 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     # Dict("SVGPMC"=>[1:1:99;100:10:999;1000:100:9999;10000:1000:20000],"SCGPMC"=>[1:1:99;100:10:999;1000:100:20000])
     p = Dict{String,Any}()
 
-    FinalMetrics = ["MeanL","AUC"]
-    # FinalMetrics = ["MeanL","Accuracy"]
+    # FinalMetrics = ["MeanL","AUC"]
+    FinalMetrics = ["MeanL","Accuracy"]
 
 
     # NC =  Dict("LogReg"=>"Linear Model","GPC"=>"SVGPMC","SPGGPC"=>"X-GPC","Accuracy"=>"Avg. Test Error","MedianL"=>"Avg. Median Neg. Test Log likelihood")
@@ -319,7 +320,7 @@ sizes = Dict("wine"=>(178,13,3),"vehicle"=>(846,18,4),"shuttle"=>(58000,9,7),"se
 
 
 DatasetNameCorrection = Dict("iris"=>"Iris","wine"=>"Wine","glass"=>"Glass","vehicle"=>"Vehicle", "segment"=>"Segment",
-                             "dna"=>"DNA","satimage"=>"SatImage","mnist"=>"MNIST","vehicle"=>"Vehicle","combined"=>"Combined",
+                             "dna"=>"DNA","satimage"=>"SatImage","mnist"=>"MNIST","vehicle"=>"Vehicle","combined"=>"Combined","fashion-mnist"=>"Fashion Mnist",
                              "sensorless"=>"Sensorless","acoustic"=>"Acoustic","covtype"=>"CovType","cpu_act"=>"CPU Act",
                              "seismic"=>"Seismic","shuttle"=>"Shuttle",
                             "Cod-rna"=>"Cod RNA", "Covtype"=>"Cov Type", "Diabetis"=>"Diabetis","Electricity"=>"Electricity",

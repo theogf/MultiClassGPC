@@ -733,6 +733,9 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
                 value_log[nrow(value_log)+1,] <- list(cont,proc.time()[1]-t0[1],1-(performance$err),-(performance$neg_meanll),-(performance$neg_medll),elbo0,performance$auc)
                 # write.table(t(c(performance$err, performance$neg_ll, proc.time() - t0)),
                 #             file = paste("./results/time_outter_", CONT, ".txt", sep = ""), row.names = F, col.names = F, append = TRUE)
+            if (cont > max_iters){
+              break
+            } 
             }
             cont <- cont + 1
             count_minibatches <- count_minibatches + 1
