@@ -6,6 +6,7 @@ using PyCall
 using ValueHistories
 using Plots
 using LinearAlgebra
+include("metrics.jl")
 pyplot()
 clibrary(:cmocean)
 seed!(42)
@@ -227,6 +228,7 @@ kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim,variance=1.0)
 # kernel = AugmentedGaussianProcesses.RBFKernel(l,variance=10.0)
 # setfixed!(kernel.fields.lengthscales)
 # setfixed!(kernel.fields.variance)
+nBins = 15
 autotuning = true
 
 
@@ -244,12 +246,14 @@ t_alsm = @elapsed alsmmodel.train(iterations=N_iterations,callback=callback)
 
 global py_alsm = alsmmodel.predictproba(X_test)
 global y_alsm = alsmmodel.predict(X_test)
-AUC_alsm = multiclassAUC(alsmmodel,y_test,py_alsm)
+AUC_alsm = 0
 println("Expected model accuracy is $(acc(y_test,y_alsm)), loglike : $(loglike(y_test,py_alsm)) and AUC $(AUC_alsm) in $t_alsm s")
 alsm_map = title!(callbackplot(alsmmodel,2),"Aug. LogSoftMax")
 alsm_metrics = deepcopy(metrics)
 alsm_kerparams = deepcopy(kerparams)
 alsm_elbo = deepcopy(elbos)
+ECE_alsm, MCE_alsm, cal_alsm, calh_alsm =calibration(y_test,py_alsm,nBins=nBins,plothist=true,plotline=true)
+
 
 ### LOGISTIC SOFTMAX
 elbos = MVHistory()
@@ -262,13 +266,13 @@ t_lsm = @elapsed lsmmodel.train(iterations=N_iterations,callback=callback)
 
 global py_lsm = lsmmodel.predictproba(X_test)
 global y_lsm = lsmmodel.predict(X_test)
-AUC_lsm = multiclassAUC(lsmmodel,y_test,py_lsm)
+AUC_lsm = 0#multiclassAUC(lsmmodel,y_test,py_lsm)
 println("Expected model accuracy is $(acc(y_test,y_lsm)), loglike : $(loglike(y_test,py_lsm)) and AUC $(AUC_lsm) in $t_lsm s")
 lsm_map = title!(callbackplot(lsmmodel,2),"LogSoftMax")
 lsm_metrics = deepcopy(metrics)
 lsm_kerparams = deepcopy(kerparams)
 lsm_elbo = deepcopy(elbos)
-
+ECE_lsm, MCE_lsm, cal_lsm, calh_lsm = calibration(y_test,py_lsm,nBins=nBins,plothist=true,plotline=true)
 ## SOFTMAX
 elbos = MVHistory()
 metrics = MVHistory()
@@ -285,6 +289,7 @@ sm_map= title!(callbackplot(smmodel,2),"SoftMax")
 sm_metrics = deepcopy(metrics)
 sm_kerparams = deepcopy(kerparams)
 sm_elbo = deepcopy(elbos)
+ECE_sm, MCE_sm, cal_sm, calh_sm = calibration(y_test,py_sm,nBins=nBins,plothist=true,plotline=true)
 
 ## ROBUST MAX
 elbos = MVHistory()
@@ -300,6 +305,7 @@ rm_map= title!(gpflowcallbackplot(rmmodel,2),"RobustMax")
 rm_metrics = deepcopy(metrics)
 rm_kerparams = deepcopy(kerparams)
 rm_elbo = deepcopy(elbos)
+ECE_rm, MCE_rm, cal_rm, calh_rm = calibration(y_test,py_rm,nBins=nBins,plothist=true,plotline=true,gpflow=true  )
 
 
 ## Plotting part
