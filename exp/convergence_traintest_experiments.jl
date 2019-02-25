@@ -8,23 +8,23 @@ cd(@__DIR__)
 #Compare SCGPMC, BSVM, SVGPMC and others
 
 #Methods and scores to test
-doSCGPMC = !args["SCGP"] #Sparse SCGPMC (sparsity)
+doSCGPMC = args["SCGP"] #Sparse SCGPMC (sparsity)
 doHSCGPMC = args["HSCGP"]
-doEPGPMC = !args["EPGP"]
-doSVGPMC = !args["SVGP"] #Sparse Variational GPMC (Hensmann)
+doEPGPMC = args["EPGP"]
+doSVGPMC = args["SVGP"] #Sparse Variational GPMC (Hensmann)
 doARMC = args["AR"]
 doTTGPMC = args["TTGP"]
 
 doBCGPMC = false
-doStochastic = !args["stochastic"]
-doAutotuning = !args["autotuning"]
+doStochastic = args["stochastic"]
+doAutotuning = args["autotuning"]
 doPointOptimization = args["point-optimization"]
 
 include("functions_paper_experiment.jl")
 include("metrics.jl")
 ExperimentName = "Convergence"
 doSaveLastState = args["last-state"]
-doPlot = !args["plot"]
+doPlot = args["plot"]
 doWrite = !args["no-writing"] #Write results in approprate folder
 ShowIntResults = true #Show intermediate time, and results for each fold
 
@@ -33,11 +33,11 @@ ShowIntResults = true #Show intermediate time, and results for each fold
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
-dataset = "segment"
-# dataset = args["dataset"]
+# dataset = "segment"
+dataset = args["dataset"]
 X_train,y_train,X_test,y_test,DatasetName = get_train_test(dataset)
-MaxIter = 200#args["maxiter"] #Maximum number of iterations for every algorithm
-iter_points= vcat(1:9,10:5:99,100:50:999,1e3:1e3:(1e4-1),1e4:1e4:1e5)
+MaxIter = args["maxiter"] #Maximum number of iterations for every algorithm
+iter_points= vcat(1:9,10:5:99,100:50:999,1e3:500:(1e4-1),1e4:5000:1e5)
 
 (nSamples,nFeatures) = size(X_train);
 nFold = 1;#args["nFold"]; #Choose the number of folds
@@ -56,14 +56,14 @@ main_param["nSamples"] = nSamples
 main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["maxIter"]=MaxIter
 main_param["γ"] = 0.0
-main_param["M"] = 200#args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
+main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "ard"
 l = initial_lengthscale(X_train)
 main_param["Θ"] = sqrt(l) #initial Hyperparameter of the kernel
 main_param["var"] = 1.0 #Variance
 main_param["nClasses"] = length(unique(y_train))
 main_param["BatchSize"] = args["batchsize"]
-main_param["Verbose"] = 1
+main_param["Verbose"] = 0
 main_param["Window"] = 10
 main_param["Autotuning"] = doAutotuning
 main_param["PointOptimization"] = doPointOptimization
@@ -97,7 +97,7 @@ for (name,testmodel) in TestModels
     testmodel.Model = Array{Any}(undef,1)
     if testmodel.MethodType == "SCGPMC"
         CreateModel!(testmodel,1,X_train,y_train)
-        TrainModel!(testmodel,1,X_train,y_train,X_test,y_test,10,0)
+        TrainModel!(testmodel,1,X_train,y_train,X_test,y_test,20,0)
         println("Overhead removed")
     end
     #Initialize the results storage

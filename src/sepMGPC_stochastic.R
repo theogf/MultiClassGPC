@@ -713,7 +713,7 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
             q <- reconstructPosterior(a)
 
 
-	            if (cont %in% c(seq(1,9),seq(10,99,5),seq(100,999,50),seq(1000,100000,1000))) {
+	            if (cont %in% c(seq(1,9),seq(10,99,5),seq(100,999,50),seq(1000,9999,500),seq(1000,100000,5000))) {
 
                 # Reconstruct structure
                 a$f1Hat <- f1Hat

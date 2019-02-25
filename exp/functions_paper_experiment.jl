@@ -123,7 +123,7 @@ end
 function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel_fixed =false, callback=nothing , Stochastic = true)
     # we'll make use of this later when we use a XiTransform
 
-    gamma_start = 1e-4;
+    gamma_start = 1e-5;
     if Stochastic
         gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
     else
