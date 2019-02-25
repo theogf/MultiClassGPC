@@ -107,16 +107,22 @@ for (name,testmodel) in TestModels
     testmodel.Results["MedianL"] = Vector{Float64}();
     testmodel.Results["ELBO"] = Vector{Float64}();
     testmodel.Results["AUC"] = Vector{Float64}();
+    testmodel.Results["ECE"] = Vector{Float64}();
+    testmodel.Results["MCE"] = Vector{Float64}();
     CreateModel!(testmodel,1,X_train,y_train)
     init_t = time_ns()
     if testmodel.MethodType == "EPGPMC"
         global LogArrays=copy(transpose(TrainModel!(testmodel,1,X_train,y_train,X_test,y_test,MaxIter,iter_points)))
         testmodel.Results["Time"] = LogArrays[1,:]
         testmodel.Results["AUC"] = LogArrays[6,:]
+        testmodel.Results["ECE"] = LogArrays[7,:]
+        testmodel.Results["MCE"] = LogArrays[8,:]
     else
         global LogArrays= hcat(TrainModel!(testmodel,1,X_train,y_train,X_test,y_test,MaxIter,iter_points)...)
         testmodel.Results["Time"] = TreatTime(init_t,LogArrays[1,:],LogArrays[6,:])
         testmodel.Results["AUC"] = LogArrays[7,:]
+        testmodel.Results["ECE"] = LogArrays[8,:]
+        testmodel.Results["MCE"] = LogArrays[9,:]
     end
     testmodel.Results["Accuracy"] = LogArrays[2,:]
     testmodel.Results["MeanL"] = LogArrays[3,:]
@@ -133,9 +139,9 @@ for (name,testmodel) in TestModels
         println("SCGPMC : params : $([AugmentedGaussianProcesses.KernelModule.getlengthscales(k) for k in testmodel.Model[1].kernel])\n and coeffs :  $([AugmentedGaussianProcesses.KernelModule.getvariance(k) for k in testmodel.Model[1].kernel])")
     end
     n = size(testmodel.Results["Time"])
-    testmodel.Results["Processed"]= [testmodel.Results["Time"] zeros(n) testmodel.Results["Accuracy"] zeros(n) testmodel.Results["MeanL"] zeros(n) testmodel.Results["MedianL"] zeros(n) testmodel.Results["ELBO"] zeros(n) testmodel.Results["AUC"] zeros(n)]
-    testmodel.model
+    testmodelm.Results["Processed"]= [testmodel.Results["Time"] zeros(n) testmodel.Results["MeanL"] zeros(n) testmodel.Results["MedianL"] zeros(n) testmodel.Results["ELBO"] zeros(n) testmodel.Results["AUC"] zeros(n) testmodel.Results["ECE"] zeros(n) testmodel.Results["MCE"] zeros(n)]
     if doWrite
+
         top_fold = "results";
         if !isdir(top_fold); mkdir(top_fold); end;
         WriteResults(testmodel,top_fold,writing_order) #Write the results in an adapted format into a folder

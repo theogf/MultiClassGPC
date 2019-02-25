@@ -201,7 +201,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
     if typeof(tm.Model[i]) <: AugmentedGaussianProcesses.GPModel
         function LogIt(model::AugmentedGaussianProcesses.GPModel,iter)
             if in(iter,iter_points)
-                a = Vector{Any}(undef,7)
+                a = Vector{Any}(undef,9)
                 a[1] = time_ns()
                 AugmentedGaussianProcesses.computeMatrices!(model)
                 # y_p = OMGP.multiclasspredict(model,X_test,true)
@@ -219,6 +219,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 end
                 a[7] = rcopy(R"multiclass.roc($y_test,$y_pred)$auc")
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
+                a[8],a[9] = calibration(y_test,y_p)
                 a[6] = time_ns()
                 push!(LogArrays,a)
             end
@@ -246,6 +247,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 end
                 a[7] = rcopy(R"multiclass.roc($y_test,$y_pred)$auc")
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
+                a[8],a[9] = calibration(y_test,y_p,gpflow=true)
                 a[6] = time_ns()
                 push!(LogArrays,a)
             end
@@ -316,6 +318,8 @@ function ProcessResults(tm::TestingModel,iFold)
     Mmedianl = zeros(NMax); medianl= []
     Melbo = zeros(NMax); elbo = []
     Mauc = zeros(NMax); auc = []
+    Mece = zeros(NMax); ece = []
+    Mmce = zeros(NMax); mce = []
     for i in 1:iFold
         DiffN = NMax - length(tm.Results["Time"][i])
         if DiffN != 0
@@ -325,6 +329,8 @@ function ProcessResults(tm::TestingModel,iFold)
             medianl = [tm.Results["MedianL"][i];tm.Results["MedianL"][i][end]*ones(DiffN)]
             elbo = [tm.Results["ELBO"][i];tm.Results["ELBO"][i][end]*ones(DiffN)]
             auc = [tm.Results["AUC"][i];tm.Results["AUC"][i][end]*ones(DiffN)]
+            ece = [tm.Results["ECE"][i];tm.Results["ECE"][i][end]*ones(DiffN)]
+            mce = [tm.Results["MCE"][i];tm.Results["MCE"][i][end]*ones(DiffN)]
         else
             time = tm.Results["Time"][i];
             acc = tm.Results["Accuracy"][i];
@@ -332,6 +338,8 @@ function ProcessResults(tm::TestingModel,iFold)
             medianl = tm.Results["MedianL"][i];
             elbo = tm.Results["ELBO"][i];
             auc = tm.Results["AUC"][i];
+            ece = tm.Results["ECE"][i];
+            mce = tm.Results["MCE"][i];
         end
         Mtime = hcat(Mtime,time)
         Macc = hcat(Macc,acc)
@@ -339,6 +347,8 @@ function ProcessResults(tm::TestingModel,iFold)
         Mmedianl = hcat(Mmedianl,medianl)
         Melbo = hcat(Melbo,elbo)
         Mauc = hcat(Mauc,auc)
+        Mece = hcat(Mece,ece)
+        Mmce = hcat(Mmce,mce)
     end
     if size(Mtime,2)!=2
       Mtime[:,2] = Mtime[:,3]
@@ -352,7 +362,9 @@ function ProcessResults(tm::TestingModel,iFold)
     tm.Results["MedianL"] = Mmedianl
     tm.Results["ELBO"] = Melbo
     tm.Results["AUC"] = Mauc
-    tm.Results["Processed"]= [vec(mean(Mtime,dims=2)) vec(std(Mtime,dims=2)) vec(mean(Macc,dims=2)) vec(std(Macc,dims=2)) vec(mean(Mmeanl,dims=2)) vec(std(Mmeanl,dims=2)) vec(mean(Mmedianl,dims=2)) vec(std(Mmedianl,dims=2)) vec(mean(Melbo,dims=2)) vec(std(Melbo,dims=2)) vec(mean(Mauc,dims=2)) vec(std(Mauc,dims=2))]
+    tm.Results["ECE"] = Mece
+    tm.Results["MCE"] = Mmce
+    tm.Results["Processed"]= [vec(mean(Mtime,dims=2)) vec(std(Mtime,dims=2)) vec(mean(Macc,dims=2)) vec(std(Macc,dims=2)) vec(mean(Mmeanl,dims=2)) vec(std(Mmeanl,dims=2)) vec(mean(Mmedianl,dims=2)) vec(std(Mmedianl,dims=2)) vec(mean(Melbo,dims=2)) vec(std(Melbo,dims=2)) vec(mean(Mauc,dims=2)) vec(std(Mauc,dims=2)) vec(mean(Mece,dims=2)) vec(std(Mece,dims=2)) vec(mean(Mmce,dims=2)) vec(std(Mmce,dims=2))]
 end
 
 function SavePredictions(tm::TestingModel,y_pred,y_test,location)
@@ -376,9 +388,9 @@ function WriteResults(tm::TestingModel,location,writing_order)
     fold = String(location*"/"*(doAutotuning ? "AT_" : "")*(doStochastic ? "S_" : "")*"Experiment")
     if !isdir(fold); mkdir(fold); end;
     fold = fold*"/"*tm.DatasetName*"Dataset"
-    labels=Array{String,1}(undef,length(writing_order)*2)
-    labels[1:2:end-1,:] = writing_order.*"_mean"
-    labels[2:2:end,:] =  writing_order.*"_std"
+    # labels=Array{String,1}(undef,length(writing_order)*2)
+    # labels[1:2:end-1,:] = writing_order.*"_mean"
+    # labels[2:2:end,:] =  writing_order.*"_std"
     if !isdir(fold); mkdir(fold); end;
     writedlm(String(fold*"/Results_"*tm.MethodName*".txt"),tm.Results["Processed"])
 end

@@ -99,6 +99,8 @@ for (name,testmodel) in TestModels
     testmodel.Results["MedianL"] = Vector{Vector{Float64}}();
     testmodel.Results["ELBO"] = Vector{Vector{Float64}}();
     testmodel.Results["AUC"] = Vector{Vector{Float64}}();
+    testmodel.Results["ECE"] = Vector{Vector{Float64}}();
+    testmodel.Results["MCE"] = Vector{Vector{Float64}}();
     for i in 1:iFold #Run over iFold folds of the data
         #Remove time overhead
         if testmodel.MethodType == "SCGPMC" && i== 1
@@ -124,10 +126,14 @@ for (name,testmodel) in TestModels
                 global LogArrays=copy(transpose(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)))
                 push!(testmodel.Results["Time"],LogArrays[1,:])
                 push!(testmodel.Results["AUC"],LogArrays[6,:])
+                push!(testmodel.Results["ECE"],LogArrays[7,:])
+                push!(testmodel.Results["MCE"],LogArrays[8,:])
             else
                 global LogArrays= hcat(TrainModel!(testmodel,i,X,y,X_test,y_test,MaxIter,iter_points)...)
                 push!(testmodel.Results["Time"],TreatTime(init_t,LogArrays[1,:],LogArrays[6,:]))
                 push!(testmodel.Results["AUC"],LogArrays[7,:])
+                push!(testmodel.Results["ECE"],LogArrays[8,:])
+                push!(testmodel.Results["MCE"],LogArrays[9,:])
             end
             push!(testmodel.Results["Accuracy"],LogArrays[2,:])
             push!(testmodel.Results["MeanL"],LogArrays[3,:])
