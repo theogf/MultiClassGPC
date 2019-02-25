@@ -3,12 +3,12 @@
 # Compute also the brier score and the logscore
 
 include("get_arguments.jl")
-cd(dirname(@__FILE__))
+cd(@__DIR__)
 # if !in(LOAD_PATH,SRC_PATH); push!(LOAD_PATH,SRC_PATH); end;
 #Compare SCGPMC, BSVM, SVGPMC and others
 
 #Methods and scores to test
-doSCGPMC = args["SCGP"] #Sparse SCGPMC (sparsity)
+doSCGPMC = !args["SCGP"] #Sparse SCGPMC (sparsity)
 doHSCGPMC = args["HSCGP"]
 doEPGPMC = !args["EPGP"]
 doSVGPMC = !args["SVGP"] #Sparse Variational GPMC (Hensmann)
@@ -21,10 +21,10 @@ doAutotuning = !args["autotuning"]
 doPointOptimization = args["point-optimization"]
 
 include("functions_paper_experiment.jl")
-
+include("metrics.jl")
 ExperimentName = "Convergence"
 doSaveLastState = args["last-state"]
-doPlot = args["plot"]
+doPlot = !args["plot"]
 doWrite = !args["no-writing"] #Write results in approprate folder
 ShowIntResults = true #Show intermediate time, and results for each fold
 
@@ -33,10 +33,10 @@ ShowIntResults = true #Show intermediate time, and results for each fold
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
-dataset = "fashion-mnist"
+dataset = "segment"
 # dataset = args["dataset"]
 X_train,y_train,X_test,y_test,DatasetName = get_train_test(dataset)
-MaxIter = 3000#args["maxiter"] #Maximum number of iterations for every algorithm
+MaxIter = 200#args["maxiter"] #Maximum number of iterations for every algorithm
 iter_points= vcat(1:9,10:5:99,100:50:999,1e3:1e3:(1e4-1),1e4:1e4:1e5)
 
 (nSamples,nFeatures) = size(X_train);
@@ -139,7 +139,7 @@ for (name,testmodel) in TestModels
         println("SCGPMC : params : $([AugmentedGaussianProcesses.KernelModule.getlengthscales(k) for k in testmodel.Model[1].kernel])\n and coeffs :  $([AugmentedGaussianProcesses.KernelModule.getvariance(k) for k in testmodel.Model[1].kernel])")
     end
     n = size(testmodel.Results["Time"])
-    testmodelm.Results["Processed"]= [testmodel.Results["Time"] zeros(n) testmodel.Results["MeanL"] zeros(n) testmodel.Results["MedianL"] zeros(n) testmodel.Results["ELBO"] zeros(n) testmodel.Results["AUC"] zeros(n) testmodel.Results["ECE"] zeros(n) testmodel.Results["MCE"] zeros(n)]
+    testmodel.Results["Processed"]= [testmodel.Results["Time"] zeros(n) testmodel.Results["Accuracy"] zeros(n) testmodel.Results["MeanL"] zeros(n) testmodel.Results["MedianL"] zeros(n) testmodel.Results["ELBO"] zeros(n) testmodel.Results["AUC"] zeros(n) testmodel.Results["ECE"] zeros(n) testmodel.Results["MCE"] zeros(n)]
     if doWrite
 
         top_fold = "results";

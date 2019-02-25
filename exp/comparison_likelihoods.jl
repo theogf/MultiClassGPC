@@ -132,7 +132,7 @@ function callbackplot(model,iter)
     return p1
 end
 
-""
+##
 
 function gpflowcallbackplot(model,iter)
     if iter%2 !=0
@@ -255,7 +255,7 @@ alsm_elbo = deepcopy(elbos)
 ECE_alsm, MCE_alsm, cal_alsm, calh_alsm =calibration(y_test,py_alsm,nBins=nBins,plothist=true,plotline=true)
 
 
-### LOGISTIC SOFTMAX
+## LOGISTIC SOFTMAX
 elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
@@ -283,7 +283,7 @@ t_sm = @elapsed smmodel.train(iterations=N_iterations,callback=callback)
 
 global py_sm = smmodel.predictproba(X_test)
 global y_sm = smmodel.predict(X_test)
-AUC_sm = multiclassAUC(smmodel,y_test,py_sm)
+AUC_sm = 0;#multiclassAUC(smmodel,y_test,py_sm)
 println("Expected model accuracy is $(acc(y_test,y_sm)), loglike : $(loglike(y_test,py_sm)) and AUC $(AUC_sm) in $t_sm s")
 sm_map= title!(callbackplot(smmodel,2),"SoftMax")
 sm_metrics = deepcopy(metrics)
@@ -299,13 +299,13 @@ rmmodel = gpflow.models[:SVGP](X, Float64.(reshape(y.-1,(length(y),1))),kern=gpf
 t_rm = @elapsed run_nat_grads_with_adam(rmmodel,N_iterations/10,callback=callbackgpflow,Stochastic=false)
 
 global py_rm = rmmodel[:predict_y](X_test)[1]
-AUC_rm = multiclassAUC(y_test,py_rm)
+AUC_rm = 0#multiclassAUC(y_test,py_rm)
 println("Expected model accuracy is $(gpflowacc(y_test,py_rm)), loglike : $(gpflowloglike(y_test,py_rm)) and AUC $(AUC_rm) in $t_sm s")
 rm_map= title!(gpflowcallbackplot(rmmodel,2),"RobustMax")
 rm_metrics = deepcopy(metrics)
 rm_kerparams = deepcopy(kerparams)
 rm_elbo = deepcopy(elbos)
-ECE_rm, MCE_rm, cal_rm, calh_rm = calibration(y_test,py_rm,nBins=nBins,plothist=true,plotline=true,gpflow=true  )
+ECE_rm, MCE_rm, cal_rm, calh_rm = calibration(y_test,py_rm,nBins=nBins,plothist=true,plotline=true,gpflow=true)
 
 
 ## Plotting part

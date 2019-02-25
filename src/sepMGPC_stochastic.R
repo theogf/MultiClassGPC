@@ -1,6 +1,7 @@
 #########################################################################################################
 #
 library(pROC)
+library(CalibratR)
 
 t0 <- NULL
 optim_params <- NULL
@@ -551,7 +552,7 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
                            print_interval = ceiling(nrow(X)/n_minibatch)) {
 
     t0 <<- proc.time()
-    value_log <- data.frame(Iter=numeric(),Time=numeric(),Accuracy=numeric(),MeanLL=numeric(),MedianLL=numeric(),ELBO=numeric(),AUC=numeric())
+    value_log <- data.frame(Iter=numeric(),Time=numeric(),Accuracy=numeric(),MeanLL=numeric(),MedianLL=numeric(),ELBO=numeric(),AUC=numeric(),ECE=numeric(),MCE=numeric())
     if (!is.factor(Y)){Y <- factor(Y)}
     # We initialize the hyper-parameters
     REPORT <- TRUE
@@ -730,7 +731,7 @@ epMGPCInternal <- function(X, Y, m, n_minibatch, Xbar_ini = NULL, log_sigma = re
 
 								cat("Epoch",  cont, "Accuracy:", 1-(performance$err), " MeanL:", -(performance$neg_meanll), "\n")
                 t0 <- t0 + (t_after - t_before)
-                value_log[nrow(value_log)+1,] <- list(cont,proc.time()[1]-t0[1],1-(performance$err),-(performance$neg_meanll),-(performance$neg_medll),elbo0,performance$auc)
+                value_log[nrow(value_log)+1,] <- list(cont,proc.time()[1]-t0[1],1-(performance$err),-(performance$neg_meanll),-(performance$neg_medll),elbo0,performance$auc,performance$ece,performance$mce)
                 # write.table(t(c(performance$err, performance$neg_ll, proc.time() - t0)),
                 #             file = paste("./results/time_outter_", CONT, ".txt", sep = ""), row.names = F, col.names = F, append = TRUE)
             if (cont > max_iters){
@@ -882,17 +883,29 @@ evaluate_test_performance <- function(ret, X_test, Y_test, q = NULL) {
     #
     # val <- values_k
     # values_k_2 <- matrix(apply(to_add, 2, function(add) val <- val + add), n, n_points_grid)
-
+    
     prob_class <- rowSums(exp(values_k)) * (grid_k[ ,2 ] - grid_k[ ,1 ])
-
+    y_pred = predictMGPC(ret,X_test)
 		auc <- multiclass.roc(Y_test,prob_class)$auc
+		eces <- array(dim=ret$nK)
+		mces <- array(dim=ret$nK)
+		for (j in 1 : (ret$nK)) {
+		  y_j <- as.numeric(Y_test == j)
+		  #eces[j] <- CalibratR:::getECE(y_j,y_pred$prob[,j],n_bins=15)
+		  #mces[j] <- CalibratR:::getMCE(y_j,y_pred$prob[,j],n_bins=15)
+		  eces[j] <- CalibratR:::get_ECE_equal_width(y_j,y_pred$prob[,j],bins=15)
+		  mces[j] <- CalibratR:::get_MCE_equal_width(y_j,y_pred$prob[,j],bins=15)
+		}
+		ece <- mean(eces)
+		mce <- mean(mces)
     err <- mean(apply(means, 1, which.max) != Y_test)
     neg_meanll <- -mean(log(prob_class))
     neg_medll <- -median(log(prob_class),na.rm=TRUE)
-
-    list(err = err, neg_meanll = neg_meanll, neg_medll = neg_medll, auc=auc)
-
-
+    #list(err = err, neg_meanll = neg_meanll, neg_medll = neg_medll, auc=auc)
+    
+    list(err = err, neg_meanll = neg_meanll, neg_medll = neg_medll, auc=auc, ece=ece, mce=mce)
+    
+    
 }
 
 

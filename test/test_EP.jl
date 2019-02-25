@@ -3,8 +3,10 @@ using RCall
 using Dates
 using PyCall
 using Distributions
+using HDF5
 @pyimport sklearn.datasets as sk
 @pyimport sklearn.model_selection as sp
+cd(@__DIR__)
 N_samples = 150
 N_dim = 2
 N_class = 3
@@ -32,7 +34,7 @@ y_test =  min.(max.(1,floor.(Int64,latent(X_test))),N_class)
 # X,y = sk.make_classification(n_samples=N_samples,n_features=N_dim,n_classes=N_class,n_clusters_per_class=1,n_informative=N_dim,n_redundant=0)
 # X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 #Test on the Iris dataet
-data = readdlm("data/Iris")
+data = h5read("../data/iris.h5","data")
 X = data[1:100,1:end-1]; X_test=data[101:end,1:end-1]
 y = data[1:100,end].+1; y_test=Int64.(data[101:end,end]).+1
 truthknown = false
@@ -55,17 +57,20 @@ truthknown = false
 # y_test= X_test[:,1]; X_test=X_test[:,2:end]
 # println("$(now()): Artificial Characters data loaded")
 
-R"source('src/sepMGPC_stochastic.R')"
+R"source('../src/sepMGPC_stochastic.R')"
 m=20
 # ind_points = KMeansInducingPoints(X,m,10)
 batchsize=40
 maxiter=100
 indpointsopt=true
- l = 1.0
- hyperparamopt = false
- t_EP = @elapsed EPmodel = R"epMGPCInternal($X, $y, m = $m, n_minibatch = $batchsize, X_test=$X_test, Y_test=$y_test, max_iters = $maxiter,autotuning =TRUE)"
- R"y_EP <- predictMGPC($EPmodel,$X_test)"
- LogArrays = Matrix(rcopy(EPmodel[:log_table]))[:,2:end]
+l = 1.0
+hyperparamopt = false
+t_EP = @elapsed EPmodel = R"epMGPCInternal($X, $y, m = $m, n_minibatch = $batchsize, X_test=$X_test, Y_test=$y_test, max_iters = $maxiter,autotuning =TRUE)"
+R"y_EP <- predictMGPC($EPmodel,$X_test)"
+
+y_EP = rcopy(R"y_EP$prob")
+ECE, MCE = calibration(y_test,y_EP,gpflow=true,plothist=true,plotline=true)
+LogArrays = Matrix(rcopy(EPmodel[:log_table]))[:,2:end]
 y_EP = @rget y_EP
 y_pred = map(x->parse(Int64,x),y_EP[:labels])
 EP_score = 0

@@ -50,8 +50,8 @@ function get_train_test(datasetname::String)
     println("Getting dataset")
     X_train = h5read("../data/"*datasetname*".h5","data/X_train")
     X_test = h5read("../data/"*datasetname*".h5","data/X_test")
-    y_train = h5read("../data/"*datasetname*".h5","data/y_train")
-    y_test = h5read("../data/"*datasetname*".h5","data/y_test")
+    y_train = Int64.(h5read("../data/"*datasetname*".h5","data/y_train"))
+    y_test = Int64.(h5read("../data/"*datasetname*".h5","data/y_test"))
     println("Dataset loaded")
     return (X_train,y_train,X_test,y_test,datasetname)
 end
@@ -219,7 +219,10 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 end
                 a[7] = rcopy(R"multiclass.roc($y_test,$y_pred)$auc")
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
-                a[8],a[9] = calibration(y_test,y_p)
+                a[8],a[9] = calibration_R(y_test,y_p)
+                # a[8],a[9] = calibration(y_test,y_p)
+                a[8] = mean(a[8])
+                a[9] = mean(a[9])
                 a[6] = time_ns()
                 push!(LogArrays,a)
             end
@@ -232,7 +235,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
     elseif tm.MethodType == "SVGPMC"
       function pythonlogger(model,session,iter)
             if in(iter,iter_points)
-                a = Vector{Any}(undef,7)
+                a = Vector{Any}(undef,9)
                 a[1] = time_ns()
                 y_p = model[:predict_y](X_test)[1]
                 loglike = LogLikelihood(y_test,y_p)
@@ -247,7 +250,10 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 end
                 a[7] = rcopy(R"multiclass.roc($y_test,$y_pred)$auc")
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
-                a[8],a[9] = calibration(y_test,y_p,gpflow=true)
+                a[8],a[9] = calibration_R(y_test,y_p,gpflow=true)
+                # a[8],a[9] = calibration(y_test,y_p,gpflow=true)
+                a[8] = mean(a[8])
+                a[9] = mean(a[9])
                 a[6] = time_ns()
                 push!(LogArrays,a)
             end
@@ -460,7 +466,7 @@ function PlotResults(TestModels)
     if nModels == 0; return; end;
     f = figure("Convergence Results");clf();
     colors=["blue", "red", "green"]
-    subplot(2,2,1); #Accuracy
+    subplot(3,2,1); #Accuracy
         iter=1
         step =1
         for (name,testmodel) in TestModels
@@ -472,7 +478,7 @@ function PlotResults(TestModels)
     legend()
     xlabel("Time [s]")
     ylabel("Accuracy")
-    subplot(2,2,2); #MeanL
+    subplot(3,2,2); #MeanL
         iter=1
         step =1
         for (name,testmodel) in TestModels
@@ -484,7 +490,7 @@ function PlotResults(TestModels)
     legend()
     xlabel("Time [s]")
     ylabel("Mean Log L")
-    subplot(2,2,3); #MedianL
+    subplot(3,2,3); #MedianL
         iter=1
         step =1
         for (name,testmodel) in TestModels
@@ -496,42 +502,42 @@ function PlotResults(TestModels)
     legend()
     xlabel("Time [s]")
     ylabel("Median Log L")
-    subplot(2,2,4); #ELBO
+    subplot(3,2,4); #AUC
         iter=1
         step =1
         for (name,testmodel) in TestModels
             results = testmodel.Results["Processed"]
-            semilogx(results[1:step:end,1],results[1:step:end,9],color=colors[iter],label=name)
-            fill_between(results[1:step:end,1],results[1:step:end,9]-results[1:step:end,10]/sqrt(10),results[1:step:end,9]+results[1:step:end,10]/sqrt(10),alpha=0.2,facecolor=colors[iter])
+            semilogx(results[1:step:end,1],results[1:step:end,11],color=colors[iter],label=name)
+            fill_between(results[1:step:end,1],results[1:step:end,11]-results[1:step:end,12]/sqrt(10),results[1:step:end,11]+results[1:step:end,12]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
     legend()
     xlabel("Time [s]")
-    ylabel("neg. ELBO")
-    # subplot(3,2,5); #Accuracy
-    #     iter=1
-    #     step =1
-    #     for (name,testmodel) in TestModels
-    #         results = testmodel.Results["Processed"]
-    #         plot(results[1:step:end,1],results[1:step:end,11],color=colors[iter],label=name)
-    #         fill_between(results[1:step:end,1],results[1:step:end,11]-results[1:step:end,12]/sqrt(10),results[1:step:end,11]+results[1:step:end,12]/sqrt(10),alpha=0.2,facecolor=colors[iter])
-    #         iter+=1
-    #     end
-    # legend()
-    # xlabel("Time [s]")
-    # ylabel("Param")
-    # subplot(3,2,6); #Accuracy
-    #     iter=1
-    #     step =1
-    #     for (name,testmodel) in TestModels
-    #         results = testmodel.Results["Processed"]
-    #         plot(results[1:step:end,1],results[1:step:end,13],color=colors[iter],label=name)
-    #         fill_between(results[1:step:end,1],results[1:step:end,13]-results[1:step:end,14]/sqrt(10),results[1:step:end,13]+results[1:step:end,14]/sqrt(10),alpha=0.2,facecolor=colors[iter])
-    #         iter+=1
-    #     end
-    # legend()
-    # xlabel("Time [s]")
-    # display(ylabel("Coeff"))
+    ylabel("AUC")
+    subplot(3,2,5); #ECE
+        iter=1
+        step =1
+        for (name,testmodel) in TestModels
+            results = testmodel.Results["Processed"]
+            loglog(results[1:step:end,1],results[1:step:end,13],color=colors[iter],label=name)
+            fill_between(results[1:step:end,1],results[1:step:end,13]-results[1:step:end,14]/sqrt(10),results[1:step:end,13]+results[1:step:end,14]/sqrt(10),alpha=0.2,facecolor=colors[iter])
+            iter+=1
+        end
+    legend()
+    xlabel("Time [s]")
+    ylabel("ECE")
+    subplot(3,2,6); #MCE
+        iter=1
+        step =1
+        for (name,testmodel) in TestModels
+            results = testmodel.Results["Processed"]
+            loglog(results[1:step:end,1],results[1:step:end,15],color=colors[iter],label=name)
+            fill_between(results[1:step:end,1],results[1:step:end,15]-results[1:step:end,16]/sqrt(10),results[1:step:end,15]+results[1:step:end,16]/sqrt(10),alpha=0.2,facecolor=colors[iter])
+            iter+=1
+        end
+    legend()
+    xlabel("Time [s]")
+    display(ylabel("MCE"))
     display(f)
 end
 
