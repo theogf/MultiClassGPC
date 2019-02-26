@@ -198,21 +198,21 @@ end
 
 function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points)
     LogArrays = Array{Any,1}()
-    if typeof(tm.Model[i]) <: AugmentedGaussianProcesses.GPModel
-        function LogIt(model::AugmentedGaussianProcesses.GPModel,iter)
+    if typeof(tm.Model[i]) <: GP
+        function LogIt(model,iter)
             if in(iter,iter_points)
                 a = Vector{Any}(undef,9)
                 a[1] = time_ns()
                 AugmentedGaussianProcesses.computeMatrices!(model)
                 # y_p = OMGP.multiclasspredict(model,X_test,true)
-                y_p = AugmentedGaussianProcesses.multiclasspredictproba(model,X_test,false)
+                y_p = proba_y(model,X_test)
                 # y_exp = OMGP.multiclasssoftmax(model,X_test,false)
                 a[2] = TestAccuracy(model,y_test,y_p)
                 loglike = LogLikelihood(model,y_test,y_p)
                 # loglike_exp = LogLikelihood(model,y_test,y_exp)
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
-                a[5] = -AugmentedGaussianProcesses.ELBO(model)
+                a[5] = -ELBO(model)
                 y_pred = Float64.(zero(y_test))
                 for i in unique(y_test)
                     y_pred[y_test.==i] = y_p[Symbol(i)][y_test.==i]
@@ -230,7 +230,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
         if tm.MethodType == "HSCGPMC"
             trainhybrid(tm.Model[i],tm.Param["nConjugateSteps"],iterations,LogIt)
         else
-            tm.Model[i].train(iterations=iterations,callback=LogIt)
+            train!(tm.Model[i],iterations=iterations,callback=LogIt)
         end
     elseif tm.MethodType == "SVGPMC"
       function pythonlogger(model,session,iter)
@@ -402,7 +402,7 @@ function WriteResults(tm::TestingModel,location,writing_order)
 end
 
 #Return Accuracy on test set
-function TestAccuracy(model::AugmentedGaussianProcesses.GPModel, y_test, y_predic)
+function TestAccuracy(model::GP, y_test, y_predic)
     score = 0
     # println(y_predic,y_test)
     for i in 1:length(y_test)
@@ -426,7 +426,7 @@ function TestAccuracy(y_test, y_predic)
 end
 
 
-function LogLikelihood(model::AugmentedGaussianProcesses.GPModel,y_test,y_predic)
+function LogLikelihood(model::GP,y_test,y_predic)
     return [log(y_predic[Symbol(y_t)][i]) for (i,y_t) in enumerate(y_test)]
 end
 

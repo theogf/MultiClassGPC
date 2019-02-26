@@ -114,17 +114,14 @@ kerparams = MVHistory()
 elbos = MVHistory()
 anim  = Animation()
 function callbackplot(model,iter)
-    if iter%2 !=0
-        return
-    end
-    y_fgrid =  model.predict(X_grid)
-    global py_fgrid = model.predictproba(X_grid)
-    global cols = reshape([RGB(vec(convert(Array,py_fgrid[i,:]))[collect(values(sort(model.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    y_fgrid = predict_y(model,X_grid)
+    global py_fgrid = proba_y(model,X_grid)
+    global cols = reshape([RGB(permutedims(Vector(py_fgrid[i,:]))[collect(values(sort(model.likelihood.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
     global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,framestyle=:box)
     lims = (xlims(p1),ylims(p1))
     p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.2)
-    p1=plot!(p1,model.inducingPoints[1][:,1],model.inducingPoints[1][:,2],color=:black,t=:scatter,lab="")
+    p1=plot!(p1,model.Z[1][:,1],model.Z[1][:,2],color=:black,t=:scatter,lab="")
     p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(0,100),t=:contour,colorbar=false,color=:gray,levels=10)
     xlims!(p1,lims[1]);ylims!(p1,lims[2])
     frame(anim,p1)
@@ -185,14 +182,14 @@ function gpflowloglike(y_test,y_pred)
 end
 
 function callback(model,iter)
-    y_pred = model.predict(X_test)
-    py_pred = model.predictproba(X_test)
+    y_pred = predict_y(alsmmodel,X_test)
+    py_pred = proba_y(alsmmodel,X_test)
     push!(metrics,:err,1-acc(y_test,y_pred))
     push!(metrics,:ll,-loglike(y_test,py_pred))
     push!(elbos,:ELBO,-ELBO(model))
     push!(elbos,:NegGaussianKL,-AugmentedGaussianProcesses.GaussianKL(model))
-    push!(elbos,:ExpecLogLike,AugmentedGaussianProcesses.ExpecLogLikelihood(model))
-    for i in 1:model.K
+    push!(elbos,:ExpecLogLike,AugmentedGaussianProcesses.expecLogLikelihood(model))
+    for i in 1:model.nLatent
         p = getlengthscales(model.kernel[i])
         if length(p) > 1
             for (j,p_j) in enumerate(p)
@@ -228,7 +225,7 @@ kernel = AugmentedGaussianProcesses.RBFKernel([l],dim=N_dim,variance=1.0)
 # kernel = AugmentedGaussianProcesses.RBFKernel(l,variance=10.0)
 # setfixed!(kernel.fields.lengthscales)
 # setfixed!(kernel.fields.variance)
-nBins = 15
+nBins = 10
 autotuning = true
 
 
@@ -238,14 +235,14 @@ metrics = MVHistory()
 kerparams = MVHistory()
 
 alsmmodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=0,ϵ=1e-20,kernel=kernel,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=m)
-Z = copy(alsmmodel.inducingPoints)
-alsmmodel.train(iterations=1)
+Z = copy(alsmmodel.Z)
+# train!(alsmmodel,iterations=100)
 # @profiler t_alsm = @elapsed alsmmodel.train(iterations=100)
 # Atom.@trace AugmentedGaussianProcesses.updateHyperParameters!(alsmmodel)
-t_alsm = @elapsed alsmmodel.train(iterations=N_iterations,callback=callback)
+t_alsm = @elapsed train!(alsmmodel,iterations=N_iterations,callback=callback)
 
-global py_alsm = alsmmodel.predictproba(X_test)
-global y_alsm = alsmmodel.predict(X_test)
+global py_alsm = proba_y(alsmmodel,X_test)
+global y_alsm = predict_y(alsmmodel,X_test)
 AUC_alsm = 0
 println("Expected model accuracy is $(acc(y_test,y_alsm)), loglike : $(loglike(y_test,py_alsm)) and AUC $(AUC_alsm) in $t_alsm s")
 alsm_map = title!(callbackplot(alsmmodel,2),"Aug. LogSoftMax")

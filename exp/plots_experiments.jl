@@ -12,7 +12,7 @@ NC =  Dict("EPGPMC"=>"SEP-MGPC","TTGPC"=>"Tensor Train GPC", "LogReg"=>"Linear M
 colors=Dict("SVGPMC"=>"blue","SCGPMC"=>"red","HSCGPMC"=>"yellow","EPGPMC"=>"green", "TTGPC"=>"black","SCGPMCInd"=>"blue","SCGPMCShared"=>"red")
 linestyles=Dict(16=>":",32=>"--",64=>"-.",128=>"-")
 # linestyles=Dict(4=>"-",8=>":",10=>"-",16=>"-.",32=>"--",50=>":",64=>"-.",100=>"-.",128=>"-",200=>"--",256=>"--")
-metrics = Dict("Accuracy"=>3,"MeanL"=>5,"MedianL"=>7,"ELBO"=>9,"AUC"=>11)
+metrics = Dict("Accuracy"=>3,"MeanL"=>5,"MedianL"=>7,"ELBO"=>9,"AUC"=>11, "ECE"=>13,"MCE"=>15)
 
 # location of the results
 c = "../cluster/AT_Experiment/"
@@ -32,6 +32,8 @@ loc["dna"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,
 loc["satimage"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["segment"] =          Dict("SCGPMC"=>las,"HSCGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
 loc["mnist"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["fashion-mnist"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
+loc["kmnist"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["acoustic"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["covtype"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["combined"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
@@ -39,7 +41,6 @@ loc["seismic"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=
 loc["sensorless"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["cpu_act"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
 loc["shuttle"] =          Dict("SCGPMC"=>cs,"HSCGPMC"=>la,"SVGPMC"=>cs,"EPGPMC"=>cs,"TTGPC"=>cs)
-loc["fashion-mnist"] =          Dict("SCGPMC"=>las,"HSCGPMC"=>las,"SVGPMC"=>las,"EPGPMC"=>las,"TTGPC"=>cs)
 loc["Cod-rna"] =            Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
 loc["Covtype"] =            Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
 loc["Credit_card"] =        Dict("SCGPMC"=>c,"HSCGPMC"=>la,"SVGPMC"=>c,"EPGPMC"=>c,"TTGPC"=>c)
@@ -198,10 +199,11 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     # logreg[1,:] = Results["LogReg"]; logreg[2,2:end] = Results["LogReg"][2:end]; logreg[2,1] = maxx;
     # println(logreg)
     # Results["LogReg"] = logreg
+    f=[]
     if metric != "Final"
-        figure("Convergence on dataset "*dataset*" ",figsize=(16,9));clf();
+        f = figure("Convergence on dataset "*dataset*" ",figsize=(16,9));clf();
     else
-        figure("Convergence on dataset "*dataset*" ",figsize=(16,4.5));clf();
+        f = figure("Convergence on dataset "*dataset*" ",figsize=(16,4.5));clf();
     end
     step=1
     if corrections
@@ -287,7 +289,7 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     else
         giter = 1
         for (mname,mmetric) in metrics
-            subplot(2,2,giter)
+            subplot(2,ceil(Int64,length(metrics)/2),giter)
             for (name,results) in Results
                 semilogx(time_line[name][1:step:end],results[1:step:end,mmetric],color=colors[name],label=name)
                 fill_between(time_line[name][1:step:end],results[1:step:end,mmetric]-results[1:step:end,mmetric+1]/sqrt(10),results[1:step:end,mmetric]+results[1:step:end,mmetric+1]/sqrt(10),alpha=0.2,facecolor=colors[name])
@@ -309,6 +311,7 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
         savefig("../plots/"*(metric=="Final" ? "Final" : "")*"Convergence_vs_"*(time ? "time" : "iterations")*"_on_"*dataset*".png")
         close()
     end
+    return f
 end
 
 
@@ -320,7 +323,7 @@ sizes = Dict("wine"=>(178,13,3),"vehicle"=>(846,18,4),"shuttle"=>(58000,9,7),"se
 
 
 DatasetNameCorrection = Dict("iris"=>"Iris","wine"=>"Wine","glass"=>"Glass","vehicle"=>"Vehicle", "segment"=>"Segment",
-                             "dna"=>"DNA","satimage"=>"SatImage","mnist"=>"MNIST","vehicle"=>"Vehicle","combined"=>"Combined","fashion-mnist"=>"Fashion Mnist",
+                             "dna"=>"DNA","satimage"=>"SatImage","mnist"=>"MNIST","kmnist"=>"K-Mnist","vehicle"=>"Vehicle","combined"=>"Combined","fashion-mnist"=>"Fashion Mnist",
                              "sensorless"=>"Sensorless","acoustic"=>"Acoustic","covtype"=>"CovType","cpu_act"=>"CPU Act",
                              "seismic"=>"Seismic","shuttle"=>"Shuttle",
                             "Cod-rna"=>"Cod RNA", "Covtype"=>"Cov Type", "Diabetis"=>"Diabetis","Electricity"=>"Electricity",
