@@ -24,3 +24,4 @@ for i in 0:length(unique(y))-1
     # scatter!(X_embed[1,y.==i],X_embed[2,y.==i],lab="$i",markerstrokewidth=0)
     scatter3d!(X'[1,y.==i],X'[2,y.==i],X'[12,y.==i],lab="$i",markerstrokewidth=0)
 end
+gui()

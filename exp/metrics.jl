@@ -28,6 +28,7 @@ function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,g
             else
                 p = y_pred[Symbol(k-bias)][i]
             end
+            p = min(max(0.0,p),1.0)
             bin = min(findlast(x->p>x,edges),nBins)
             nP[k][bin] += 1
             accs[k][bin] += k==(y_test[i]+bias)
