@@ -135,6 +135,7 @@ for (name,testmodel) in TestModels
     #Reset the kernel
     if testmodel.MethodName == "SVGPMC"
         testmodel.Param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+        println("SVGPC : params : l =  $(testmodel.Model[1][:kern][:lengthscales][:value]), var = $(testmodel.Model[1][:kern][:variance][:value])")
     elseif testmodel.MethodName == "SCGPMC"
         println("SCGPMC : params : $([AugmentedGaussianProcesses.KernelModule.getlengthscales(k) for k in testmodel.Model[1].kernel])\n and coeffs :  $([AugmentedGaussianProcesses.KernelModule.getvariance(k) for k in testmodel.Model[1].kernel])")
     end
@@ -148,6 +149,7 @@ for (name,testmodel) in TestModels
     end
 end #Loop over the models
 if doPlot
-    using PyPlot
+    using Plots
+    pyplot()
     PlotResults(TestModels)
 end

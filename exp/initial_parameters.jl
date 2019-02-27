@@ -32,8 +32,13 @@ function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
   param["κ_s"] = 1.0;  param["τ_s"] = 40; #Parameters for learning rate of Stochastic gradient descent when ALR is not used
   param["ϵ"] = main_param["ϵ"]; param["Window"] = main_param["Window"]; #Convergence criteria (checking parameters norm variation on a window)
   param["ConvCriter"] = main_param["ConvCriter"]
-  if main_param["Kernel"] == "rbf"
+  if main_param["Kernel"] == "iso"
+    # param["Kernel"] = AugmentedGaussianProcesses.MaternKernel(main_param["Θ"],1.5,variance=main_param["var"]) #Kernel creation (standardized for now)
     param["Kernel"] = AugmentedGaussianProcesses.RBFKernel(main_param["Θ"],variance=main_param["var"]) #Kernel creation (standardized for now)
+    # setfixed!(param["Kernel"].fields.lengthscales)
+    # setoptimizer!(param["Kernel"],Adamax(α=0.01))
+    # setoptimizer!(param["Kernel"],Nadam(η=0.01))
+    # setoptimizer!(param["Kernel"],RMSprop(η=0.01))
   else
     param["Kernel"] = AugmentedGaussianProcesses.RBFKernel([main_param["Θ"]],dim=main_param["nFeatures"],variance=main_param["var"]) #Kernel creation (standardized for now)
   end
@@ -57,9 +62,9 @@ function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
   param["ϵ"] = main_param["ϵ"]
-  if main_param["Kernel"] == "rbf"
+  if main_param["Kernel"] == "iso"
   param["Kernel"] =   gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false)
-  else
+elseif main_param["Kernel"] == "ard"
     param["Kernel"] = gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true)
   end
   param["BatchSize"] = main_param["BatchSize"]

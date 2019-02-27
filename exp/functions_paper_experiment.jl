@@ -8,9 +8,9 @@ Set of functions for efficient testing.
 # module TestFunctions
   using DelimitedFiles, HDF5#, CSV
   using PyCall
-  using Distances, LinearAlgebra, Distributions,StatsBase
+  using Distances, LinearAlgebra, Distributions,StatsBase, GradDescent
   # using MATLAB
-  import AugmentedGaussianProcesses
+  using AugmentedGaussianProcesses
   @pyimport gpflow
   @pyimport tensorflow as tf
   # mat"addpath ~/Competitors/augment-reduce/src"
@@ -39,7 +39,7 @@ Set of functions for efficient testing.
 
 function get_Dataset(datasetname::String)
     println("Getting dataset")
-    data = h5read("../data/"*datasetname*".h5","data")
+    data = h5read("../data/"*datasetname*".h5","data/data")
     # data = Matrix{Float64}(CSV.read("../data/"*datasetname*".csv",header=false))
     X = data[:,1:end-1]; y = floor.(Int64,data[:,end]);
     println("Dataset loaded")
@@ -156,7 +156,7 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
                     break;
           else
             g = sess[:run](gamma)
-            println("Gamma $g on iteration $i is too big: Falling back to $(g*gamma_fallback)")
+            # println("Gamma $g on iteration $i is too big: Falling back to $(g*gamma_fallback)")
             sess[:run](op_gamma_fallback)
           end
         end
@@ -198,13 +198,14 @@ end
 
 function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points)
     LogArrays = Array{Any,1}()
-    if typeof(tm.Model[i]) <: GP
+    if tm.MethodType == "SCGPMC"
         function LogIt(model,iter)
             if in(iter,iter_points)
                 a = Vector{Any}(undef,9)
                 a[1] = time_ns()
                 AugmentedGaussianProcesses.computeMatrices!(model)
                 # y_p = OMGP.multiclasspredict(model,X_test,true)
+                # y_p = multiclasspredictproba(model,X_test,false)
                 y_p = proba_y(model,X_test)
                 # y_exp = OMGP.multiclasssoftmax(model,X_test,false)
                 a[2] = TestAccuracy(model,y_test,y_p)
@@ -219,8 +220,8 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 end
                 a[7] = rcopy(R"multiclass.roc($y_test,$y_pred)$auc")
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
-                a[8],a[9] = calibration_R(y_test,y_p)
-                # a[8],a[9] = calibration(y_test,y_p)
+                # a[8],a[9] = calibration_R(y_test,y_p)
+                a[8],a[9] = calibration(y_test,y_p)
                 a[8] = mean(a[8])
                 a[9] = mean(a[9])
                 a[6] = time_ns()
@@ -250,8 +251,8 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 end
                 a[7] = rcopy(R"multiclass.roc($y_test,$y_pred)$auc")
                 println("Iteration $iter : Acc is $(a[2]), MeanL is $(a[3])")
-                a[8],a[9] = calibration_R(y_test,y_p,gpflow=true)
-                # a[8],a[9] = calibration(y_test,y_p,gpflow=true)
+                # a[8],a[9] = calibration_R(y_test,y_p,gpflow=true)
+                a[8],a[9] = calibration(y_test,y_p,gpflow=true)
                 a[8] = mean(a[8])
                 a[9] = mean(a[9])
                 a[6] = time_ns()
@@ -402,7 +403,7 @@ function WriteResults(tm::TestingModel,location,writing_order)
 end
 
 #Return Accuracy on test set
-function TestAccuracy(model::GP, y_test, y_predic)
+function TestAccuracy(model, y_test, y_predic)
     score = 0
     # println(y_predic,y_test)
     for i in 1:length(y_test)
@@ -426,7 +427,7 @@ function TestAccuracy(y_test, y_predic)
 end
 
 
-function LogLikelihood(model::GP,y_test,y_predic)
+function LogLikelihood(model,y_test,y_predic)
     return [log(y_predic[Symbol(y_t)][i]) for (i,y_t) in enumerate(y_test)]
 end
 
@@ -464,81 +465,75 @@ end
 function PlotResults(TestModels)
     nModels=length(TestModels)
     if nModels == 0; return; end;
-    f = figure("Convergence Results");clf();
     colors=["blue", "red", "green"]
-    subplot(3,2,1); #Accuracy
+    ps = []
+    ##Accuracy
+        p = plot()
         iter=1
         step =1
         for (name,testmodel) in TestModels
             results = testmodel.Results["Processed"]
-            semilogx(results[1:step:end,1],results[1:step:end,3],color=colors[iter],label=name)
-            fill_between(results[1:step:end,1],results[1:step:end,3]-results[1:step:end,4]/sqrt(10),results[1:step:end,3]+results[1:step:end,4]/sqrt(10),alpha=0.2,facecolor=colors[iter])
+            plot!(p,results[1:step:end,1],1.0.-results[1:step:end,3],color=colors[iter],label=name,xaxis=:log,xlabel="Time [s]",ylabel="Test Error")
+            # fill_between(results[1:step:end,1],results[1:step:end,3]-results[1:step:end,4]/sqrt(10),results[1:step:end,3]+results[1:step:end,4]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
-    legend()
-    xlabel("Time [s]")
-    ylabel("Accuracy")
-    subplot(3,2,2); #MeanL
+        push!(ps,p)
+    ##MeanL
+        p = plot()
         iter=1
         step =1
         for (name,testmodel) in TestModels
             results = testmodel.Results["Processed"]
-            semilogx(results[1:step:end,1],results[1:step:end,5],color=colors[iter],label=name)
-            fill_between(results[1:step:end,1],results[1:step:end,5]-results[1:step:end,6]/sqrt(10),results[1:step:end,5]+results[1:step:end,6]/sqrt(10),alpha=0.2,facecolor=colors[iter])
+            plot!(p,results[1:step:end,1],-results[1:step:end,5],color=colors[iter],label=name,xaxis=:log,xlabel="Time [s]",ylabel="Neg MeanL")
+            # fill_between(results[1:step:end,1],results[1:step:end,5]-results[1:step:end,6]/sqrt(10),results[1:step:end,5]+results[1:step:end,6]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
-    legend()
-    xlabel("Time [s]")
-    ylabel("Mean Log L")
-    subplot(3,2,3); #MedianL
+        push!(ps,p)
+    ##MedianL
+        p =plot()
         iter=1
         step =1
         for (name,testmodel) in TestModels
             results = testmodel.Results["Processed"]
-            semilogx(results[1:step:end,1],results[1:step:end,7],color=colors[iter],label=name)
-            fill_between(results[1:step:end,1],results[1:step:end,7]-results[1:step:end,8]/sqrt(10),results[1:step:end,7]+results[1:step:end,8]/sqrt(10),alpha=0.2,facecolor=colors[iter])
+            plot!(p,results[1:step:end,1],-results[1:step:end,7],color=colors[iter],label=name,xaxis=:log,xlabel="Time [s]",ylabel="Neg MedianL")
+            # fill_between(results[1:step:end,1],results[1:step:end,7]-results[1:step:end,8]/sqrt(10),results[1:step:end,7]+results[1:step:end,8]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
-    legend()
-    xlabel("Time [s]")
-    ylabel("Median Log L")
-    subplot(3,2,4); #AUC
+        push!(ps,p)
+    ##AUC
+        p = plot()
         iter=1
         step =1
         for (name,testmodel) in TestModels
             results = testmodel.Results["Processed"]
-            semilogx(results[1:step:end,1],results[1:step:end,11],color=colors[iter],label=name)
-            fill_between(results[1:step:end,1],results[1:step:end,11]-results[1:step:end,12]/sqrt(10),results[1:step:end,11]+results[1:step:end,12]/sqrt(10),alpha=0.2,facecolor=colors[iter])
+            plot!(p,results[1:step:end,1],results[1:step:end,11],color=colors[iter],label=name,xaxis=:log,xlabel="Time [s]",ylabel="AUC")
+            # fill_between(results[1:step:end,1],results[1:step:end,11]-results[1:step:end,12]/sqrt(10),results[1:step:end,11]+results[1:step:end,12]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
-    legend()
-    xlabel("Time [s]")
-    ylabel("AUC")
-    subplot(3,2,5); #ECE
+        push!(ps,p)
+    ##ECE
+        p=plot()
         iter=1
         step =1
         for (name,testmodel) in TestModels
             results = testmodel.Results["Processed"]
-            loglog(results[1:step:end,1],results[1:step:end,13],color=colors[iter],label=name)
-            fill_between(results[1:step:end,1],results[1:step:end,13]-results[1:step:end,14]/sqrt(10),results[1:step:end,13]+results[1:step:end,14]/sqrt(10),alpha=0.2,facecolor=colors[iter])
+            plot!(p,results[1:step:end,1],results[1:step:end,13],color=colors[iter],label=name,xaxis=:log,yaxis=:log,xlabel="Time [s]",ylabel="ECE")
+            # fill_between(results[1:step:end,1],results[1:step:end,13]-results[1:step:end,14]/sqrt(10),results[1:step:end,13]+results[1:step:end,14]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
-    legend()
-    xlabel("Time [s]")
-    ylabel("ECE")
-    subplot(3,2,6); #MCE
+        push!(ps,p)
+    ##MCE
+        p = plot()
         iter=1
         step =1
         for (name,testmodel) in TestModels
             results = testmodel.Results["Processed"]
-            loglog(results[1:step:end,1],results[1:step:end,15],color=colors[iter],label=name)
-            fill_between(results[1:step:end,1],results[1:step:end,15]-results[1:step:end,16]/sqrt(10),results[1:step:end,15]+results[1:step:end,16]/sqrt(10),alpha=0.2,facecolor=colors[iter])
+            plot!(p,results[1:step:end,1],results[1:step:end,15],color=colors[iter],label=name,xaxis=:log,yaxis=:log,xlabel="Time [s]",ylabel="MCE")
+            # fill_between(results[1:step:end,1],results[1:step:end,15]-results[1:step:end,16]/sqrt(10),results[1:step:end,15]+results[1:step:end,16]/sqrt(10),alpha=0.2,facecolor=colors[iter])
             iter+=1
         end
-    legend()
-    xlabel("Time [s]")
-    display(ylabel("MCE"))
-    display(f)
+        push!(ps,p)
+    display(title!(plot(ps...),"Convergence Results"))
 end
 
 

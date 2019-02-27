@@ -2,6 +2,7 @@
 # Run on a file and compute Accuracy, loglikelihood and AUC on a nFold cross validation
 
 include("get_arguments.jl")
+include("metrics.jl")
 cd(dirname(@__FILE__))
 # if !in(LOAD_PATH,SRC_PATH); push!(LOAD_PATH,SRC_PATH); end;
 #Compare SCGPMC, BSVM, SVGPMC and others
@@ -55,7 +56,7 @@ main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["maxIter"]=MaxIter
 main_param["γ"] = 0.0
 main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
-main_param["Kernel"] = "ard"
+main_param["Kernel"] = "iso"
 l = initial_lengthscale(X_data)
 main_param["Θ"] = sqrt(l) #initial Hyperparameter of the kernel
 main_param["var"] = 1.0 #Variance
@@ -103,11 +104,6 @@ for (name,testmodel) in TestModels
     testmodel.Results["MCE"] = Vector{Vector{Float64}}();
     for i in 1:iFold #Run over iFold folds of the data
         #Remove time overhead
-        if testmodel.MethodType == "SCGPMC" && i== 1
-            CreateModel!(testmodel,1,X_train,y_train)
-            TrainModel!(testmodel,1,X_train,y_train,X_test,y_test,10,0)
-            println("Overhead time removed")
-        end
         if ShowIntResults
             println("#### Fold number $i/$nFold ####")
         end
@@ -119,6 +115,11 @@ for (name,testmodel) in TestModels
         end
         X = X_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples)),:]
         y = y_data[vcat(collect(1:fold_separation[i]-1),collect(fold_separation[i+1]:nSamples))]
+        if testmodel.MethodType == "SCGPMC" && i== 1
+            CreateModel!(testmodel,1,X,y)
+            TrainModel!(testmodel,1,X,y,X_test,y_test,10,0)
+            println("Overhead time removed")
+        end
         try
             CreateModel!(testmodel,i,X,y)
             init_t = time_ns()
@@ -161,6 +162,6 @@ for (name,testmodel) in TestModels
     end
 end #Loop over the models
 if doPlot
-    using PyPlot
+    using Plots
     PlotResults(TestModels)
 end

@@ -893,8 +893,8 @@ evaluate_test_performance <- function(ret, X_test, Y_test, q = NULL) {
 		  y_j <- as.numeric(Y_test == j)
 		  #eces[j] <- CalibratR:::getECE(y_j,y_pred$prob[,j],n_bins=15)
 		  #mces[j] <- CalibratR:::getMCE(y_j,y_pred$prob[,j],n_bins=15)
-		  eces[j] <- CalibratR:::get_ECE_equal_width(y_j,y_pred$prob[,j],bins=15)
-		  mces[j] <- CalibratR:::get_MCE_equal_width(y_j,y_pred$prob[,j],bins=15)
+		  eces[j] <- CalibratR:::get_ECE_equal_width(y_j,y_pred$prob[,j],bins=10)
+		  mces[j] <- CalibratR:::get_MCE_equal_width(y_j,y_pred$prob[,j],bins=10)
 		}
 		ece <- mean(eces)
 		mce <- mean(mces)
