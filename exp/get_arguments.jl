@@ -26,6 +26,9 @@ function parse_commandline()
             help = "Maximum number of iterations (x10 for SVGP)"
             arg_type = Int
             default = 100
+        "--independent"
+            help = "Use independent priors/hyperparameters"
+            action = :store_true
         "--SCGP"
             help = "Run SCGPC"
             action = :store_true

@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [ $1 -eq 1 ]
+then
+	files=(`cat ${2}`)
+else
+	files="$2"
+fi
+prefix="TrainTestExp"
+echo $files
+for i in "${files[@]}"
+do
+	screen -S "${prefix}${i}" -d -m
+	sleep 0.1
+	#Block  the number of processes used by BLAS
+	screen -r "${prefix}${i}" -p 0 -X stuff "export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 ^M"
+	screen -r "${prefix}${i}" -p 0 -X stuff "julia -p 1 convergence_traintest_experiments.jl $i --SCGP --EPGP --SVGP -A -S -b 200 -M 500 -I 10000^M"
+	echo "Created screen ${prefix}${i} and ran experiment"
+done

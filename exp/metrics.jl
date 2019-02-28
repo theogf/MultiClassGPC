@@ -17,7 +17,7 @@ function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,g
     if count(y_test.==0) != 0
         bias = 1
     end
-    if K == 3
+    if K == 3 && (plothist || plotline)
         col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
     end
     for k in unique(y_test).+bias

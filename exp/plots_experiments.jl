@@ -2,7 +2,7 @@ using PyPlot,Statistics
 using Formatting
 using PyCall
 plt[:style][:use]("seaborn-colorblind")
-
+cd(@__DIR__)
 if VERSION >= v"0.7.0-"
     using DelimitedFiles
 end
@@ -151,9 +151,9 @@ function InducingPointsComparison(metric,MPoints=[8,15,38,76,152,381];step=1)
 end
 
 function PlotAll()
-    file_list = readdlm("file_list_finished")
+    file_list = readdlm("files_finished")
     for file in file_list
-        PlotMetricvsTime(file,"Final",time=true,writing=true,corrections=false)
+        PlotMetricvsTime(file,"All",time=true,writing=true,corrections=false)
     end
 end
 

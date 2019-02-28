@@ -391,15 +391,15 @@ function PrintResults(results,method_name,writing_order)
   end
 end
 
-function WriteResults(tm::TestingModel,location,writing_order)
-    fold = String(location*"/"*(doAutotuning ? "AT_" : "")*(doStochastic ? "S_" : "")*"Experiment")
+function WriteResults(tm::TestingModel,location,writing_order,kfold)
+    fold = String(location*"/"*(doAutotuning ? "AT_" : "")*(doStochastic ? "S_" : "")*(kfold ? "K_" : "")*"Experiment")
     if !isdir(fold); mkdir(fold); end;
     fold = fold*"/"*tm.DatasetName*"Dataset"
     # labels=Array{String,1}(undef,length(writing_order)*2)
     # labels[1:2:end-1,:] = writing_order.*"_mean"
     # labels[2:2:end,:] =  writing_order.*"_std"
     if !isdir(fold); mkdir(fold); end;
-    writedlm(String(fold*"/Results_"*tm.MethodName*".txt"),tm.Results["Processed"])
+    writedlm(String(fold*"/Results_"*tm.MethodName*(tm.MethodType=="SCGPMC" ? (!tm.Param["independent"] ? "_shared" : "") : "")*".txt"),tm.Results["Processed"])
 end
 
 #Return Accuracy on test set

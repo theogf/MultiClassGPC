@@ -19,7 +19,7 @@ function DefaultParameters()
 end
 
 #Create a default parameters dictionary for CGPC
-function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,independent=true,dohybrid=false,main_param=DefaultParameters())
+function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,dohybrid=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
   param["nSamples"] = main_param["nSamples"]
@@ -47,7 +47,7 @@ function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
   param["FixedInitialization"] = main_param["FixedInitialization"]
   param["M"] = main_param["M"] #Number of inducing points
   param["γ"] = main_param["γ"] #Variance of introduced noise
-  param["independent"] = independent #Are GPs independent
+  param["independent"] = main_param["independent"] #Are GPs independent
   param["nConjugateSteps"] = 200
   return param
 end

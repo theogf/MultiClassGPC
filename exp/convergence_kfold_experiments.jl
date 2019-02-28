@@ -8,18 +8,18 @@ cd(dirname(@__FILE__))
 #Compare SCGPMC, BSVM, SVGPMC and others
 
 #Methods and scores to test
-doSCGPMC = !args["SCGP"] #Sparse SCGPMC (sparsity)
+doSCGPMC = args["SCGP"] #Sparse SCGPMC (sparsity)
 doHSCGPMC = args["HSCGP"]
-doEPGPMC = !args["EPGP"]
-doSVGPMC = !args["SVGP"] #Sparse Variational GPMC (Hensmann)
+doEPGPMC = args["EPGP"]
+doSVGPMC = args["SVGP"] #Sparse Variational GPMC (Hensmann)
 doARMC = args["AR"]
 doTTGPMC = args["TTGP"]
 
 doBCGPMC = false
-doStochastic = !args["stochastic"]
-doAutotuning = !args["autotuning"]
+doStochastic = args["stochastic"]
+doAutotuning = args["autotuning"]
 doPointOptimization = args["point-optimization"]
-
+doIndependent = args["independent"]
 include("functions_paper_experiment.jl")
 
 ExperimentName = "Convergence"
@@ -33,15 +33,15 @@ ShowIntResults = true #Show intermediate time, and results for each fold
 #= Datasets available are X :
 aXa, Bank_marketing, Click_Prediction, Cod-rna, Diabetis, Electricity, German, Shuttle
 =#
-dataset = "segment"
-# dataset = args["dataset"]
+# dataset = "segment"
+dataset = args["dataset"]
 (X_data,y_data,DatasetName) = get_Dataset(dataset)
-MaxIter = 500;#args["maxiter"] #Maximum number of iterations for every algorithm
+MaxIter = args["maxiter"] #Maximum number of iterations for every algorithm
 iter_points= vcat(1:9,10:5:99,100:50:999,1e3:1e3:(1e4-1),1e4:1e4:1e5)
 
 (nSamples,nFeatures) = size(X_data);
-nFold = 10;#args["nFold"]; #Choose the number of folds
-iFold = 10;#args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
+nFold = args["nFold"]; #Choose the number of folds
+iFold = args["iFold"] > nFold ? nFold : args["iFold"]; #Number of fold to estimate
 fold_separation = collect(1:nSamples÷nFold:nSamples+1) #Separate the data in nFold
 N_test_max = 10000
 if nSamples/nFold > N_test_max
@@ -56,7 +56,7 @@ main_param["ϵ"] = 1e-10 #Convergence criterium
 main_param["maxIter"]=MaxIter
 main_param["γ"] = 0.0
 main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
-main_param["Kernel"] = "iso"
+main_param["Kernel"] = "ard"
 l = initial_lengthscale(X_data)
 main_param["Θ"] = sqrt(l) #initial Hyperparameter of the kernel
 main_param["var"] = 1.0 #Variance
@@ -66,10 +66,11 @@ main_param["Verbose"] = 1
 main_param["Window"] = 10
 main_param["Autotuning"] = doAutotuning
 main_param["PointOptimization"] = doPointOptimization
+main_param["independent"] = doIndependent
 #All Parameters
-BCGPMCParam = CGPMCParameters(main_param=main_param,independent=true)
-SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param,independent=true)
-HSCGPMCParam = CGPMCParameters(dohybrid=true,Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param,independent=true)
+BCGPMCParam = CGPMCParameters(main_param=main_param)
+SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param)
+HSCGPMCParam = CGPMCParameters(dohybrid=true,Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param)
 SVGPMCParam = SVGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 EPGPMCParam = EPGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 
@@ -158,7 +159,7 @@ for (name,testmodel) in TestModels
     if doWrite
         top_fold = "results";
         if !isdir(top_fold); mkdir(top_fold); end;
-        WriteResults(testmodel,top_fold,writing_order) #Write the results in an adapted format into a folder
+        WriteResults(testmodel,top_fold,writing_order,true) #Write the results in an adapted format into a folder
     end
 end #Loop over the models
 if doPlot

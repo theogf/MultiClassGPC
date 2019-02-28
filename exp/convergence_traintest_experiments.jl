@@ -19,6 +19,7 @@ doBCGPMC = false
 doStochastic = args["stochastic"]
 doAutotuning = args["autotuning"]
 doPointOptimization = args["point-optimization"]
+doIndependent = args["independent"]
 
 include("functions_paper_experiment.jl")
 include("metrics.jl")
@@ -67,10 +68,11 @@ main_param["Verbose"] = 0
 main_param["Window"] = 10
 main_param["Autotuning"] = doAutotuning
 main_param["PointOptimization"] = doPointOptimization
+main_param["independent"] = doIndependent
 #All Parameters
-BCGPMCParam = CGPMCParameters(main_param=main_param,independent=true)
-SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param,independent=true)
-HSCGPMCParam = CGPMCParameters(dohybrid=true,Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param,independent=true)
+BCGPMCParam = CGPMCParameters(main_param=main_param)
+SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param)
+HSCGPMCParam = CGPMCParameters(dohybrid=true,Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param)
 SVGPMCParam = SVGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 EPGPMCParam = EPGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 
@@ -145,7 +147,7 @@ for (name,testmodel) in TestModels
 
         top_fold = "results";
         if !isdir(top_fold); mkdir(top_fold); end;
-        WriteResults(testmodel,top_fold,writing_order) #Write the results in an adapted format into a folder
+        WriteResults(testmodel,top_fold,writing_order,false) #Write the results in an adapted format into a folder
     end
 end #Loop over the models
 if doPlot
