@@ -59,7 +59,7 @@ function parse_commandline()
         "--nFold"
             help = "Divide the data set in n Folds"
             arg_type = Int
-            default = 3
+            default = 10
         "--iFold"
             help = "Number of fold which must be estimated (must be less or equal to nFold)"
             arg_type = Int
