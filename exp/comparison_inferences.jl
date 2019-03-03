@@ -97,4 +97,4 @@ for i in 1:2
 end
 
 display(plot(ps...,layout=(3,1)))
-savefig("../plots/gibbs comparison_$(f)_v$(variance).png")
+savefig("../plotsinference/gibbs comparison_$(f)_v$(variance).pdf")

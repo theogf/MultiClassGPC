@@ -11,3 +11,4 @@ data/*
 dummy.jl
 cluster/*
 cluster_save/*
+exp/resultslikelihood/*

@@ -374,14 +374,6 @@ function ProcessResults(tm::TestingModel,iFold)
     tm.Results["Processed"]= [vec(mean(Mtime,dims=2)) vec(std(Mtime,dims=2)) vec(mean(Macc,dims=2)) vec(std(Macc,dims=2)) vec(mean(Mmeanl,dims=2)) vec(std(Mmeanl,dims=2)) vec(mean(Mmedianl,dims=2)) vec(std(Mmedianl,dims=2)) vec(mean(Melbo,dims=2)) vec(std(Melbo,dims=2)) vec(mean(Mauc,dims=2)) vec(std(Mauc,dims=2)) vec(mean(Mece,dims=2)) vec(std(Mece,dims=2)) vec(mean(Mmce,dims=2)) vec(std(Mmce,dims=2))]
 end
 
-function SavePredictions(tm::TestingModel,y_pred,y_test,location)
-    fold = String(location*"/"*(doAutotuning ? "AT_" : "")*(doStochastic ? "S_" : "")*"Experiment")
-    if !isdir(fold); mkdir(fold); end;
-    fold = fold*"/"*tm.DatasetName*"Dataset"
-    if !isdir(fold); mkdir(fold); end;
-    writedlm(String(fold*"/Predictions_"*tm.MethodName*".txt"),hcat(y_test,y_pred))
-end
-
 function PrintResults(results,method_name,writing_order)
   println("Model $(method_name) : ")
   i = 1
@@ -389,6 +381,27 @@ function PrintResults(results,method_name,writing_order)
     println("$category : $(results[i*2-1]) ± $(results[i*2])")
     i+=1
   end
+end
+
+
+function WriteLastProb(tm::TestingModel,location,X_test,y_test)
+    fold = String(location*"/"*(doAutotuning ? "AT_" : "")*(doStochastic ? "S_" : "")*"Experiment")
+    if !isdir(fold); mkdir(fold); end;
+    fold = fold*"/"*tm.DatasetName*"Dataset"
+    y_p = []
+    if tm.MethodType == "SCGPMC"
+        y_p = proba_y(model,X_test)
+        reorder = sortperm(parse(Int64,string.(names(y_p))))
+        y_p = Matrix(y_p)[:,reorder]
+    elseif tm.MethodType == "EPGPMC"
+        y_p = R"predictMGPC($(testmodel[i]),$(X_test))"
+        y_p = Matrix(rcopy(y_p))[:,2:end]
+    elseif tm.MethodType == "SVGPMC"
+        y_p = model[:predict_y](X_test)[1]
+    end
+    y_p = hcat(y_test,y_p)
+    if !isdir(fold); mkdir(fold); end;
+    writedlm(String(fold*"/y_prob_"*tm.MethodName*(tm.MethodType=="SCGPMC" ? (!tm.Param["independent"] ? "_shared" : "") : "")*".txt"),y_p)
 end
 
 function WriteResults(tm::TestingModel,location,writing_order,kfold)

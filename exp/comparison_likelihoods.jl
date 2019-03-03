@@ -7,6 +7,8 @@ using ValueHistories
 using Plots
 using LinearAlgebra
 using GradDescent
+using DelimitedFiles
+cd(@__DIR__)
 include("metrics.jl")
 pyplot()
 clibrary(:cmocean)
@@ -22,7 +24,7 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
     if Stochastic
         gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
     else
-        gamma_max = 1.0;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
+        gamma_max = 0.1;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
     end
     gamma = tf.Variable(gamma_start,dtype=tf.float64);    gamma_incremented = tf.where(tf.less(gamma,gamma_max),gamma*gamma_step,gamma_max)
     op_increment_gamma = tf.assign(gamma,gamma_incremented)
@@ -39,7 +41,7 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
     op_adam=0
 
     if !(ind_points_fixed && kernel_fixed)
-        op_adam = gpflow.train[:AdamOptimizer]()[:make_optimize_tensor](model)
+        op_adam = gpflow.train[:AdamOptimizer](0.01)[:make_optimize_tensor](model)
     end
 
     for i in 1:(10*iterations)
@@ -51,24 +53,34 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
                     break;
           else
             g = sess[:run](gamma)
-            println("Gamma $g on iteration $i is too big: Falling back to $(g*gamma_fallback)")
+            println("γ $g on iteration $i is too big: Falling back to $(g*gamma_fallback)")
             sess[:run](op_gamma_fallback)
           end
         end
         if op_adam!=0
-            sess[:run](op_adam)
+            try
+                sess[:run](op_adam)
+            catch e
+                if isa(a,InterruptException)
+                    break;
+                else
+                    rethrow(e)
+                end
+            end
         end
         if i % 100 == 0
-            println("$i gamma=$(sess[:run](gamma)) ELBO=$(sess[:run](model[:likelihood_tensor]))")
+            println("$i γ=$(sess[:run](gamma)) ELBO=$(sess[:run](model[:likelihood_tensor]))")
         end
         if callback!= nothing
-            callback(model,sess,i)
+            if i%max(1,div(10^(floor(Int,log10(i))),2))==0
+                callback(model,sess,i)
+            end
         end
     end
     model[:anchor](sess)
 end
 
-N_data = 1000
+N_data = 500
 N_class = 3
 N_test = 50
 N_grid = 100
@@ -83,9 +95,10 @@ function latent(X)
     return sqrt.(X[:,1].^2+X[:,2].^2)
 end
 N_dim=2
-N_iterations = 1000
+N_iterations = 500
 m = 50
-art_noise = 0.5
+art_noise = 0.3
+dpi=600
 ##
     X_clean = (rand(N_data,N_dim)*2.0).-1.0
     y = zeros(Int64,N_data); y_noise = similar(y)
@@ -105,7 +118,7 @@ art_noise = 0.5
     classify(X_clean,y);classify(X,y_noise);
     bayes_error = count(y.!=y_noise)/length(y)
 ##
-    σ = 0.3; N_class = N_dim+1
+    σ = 0.6; N_class = N_dim+1
     centers = zeros(N_class,N_dim)
     for i in 1:N_dim
         centers[i,i] = 1
@@ -136,31 +149,27 @@ function callbackplot(model,iter)
     global py_fgrid = proba_y(model,X_grid)
     global cols = reshape([RGB(permutedims(Vector(py_fgrid[i,:]))[collect(values(sort(model.likelihood.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
-    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,framestyle=:box)
+    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,grid=:hide,framestyle=:none,yflip=false,dpi=dpi)
     lims = (xlims(p1),ylims(p1))
-    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.2)
-    p1=plot!(p1,model.Z[1][:,1],model.Z[1][:,2],color=:black,t=:scatter,lab="")
+    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.3)
+    # p1=plot!(p1,model.Z[1][:,1],model.Z[1][:,2],color=:black,t=:scatter,lab="")
     p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(0,100),t=:contour,colorbar=false,color=:gray,levels=10)
     xlims!(p1,lims[1]);ylims!(p1,lims[2])
     frame(anim,p1)
-    display(p1)
     return p1
 end
 
 ##
 
 function gpflowcallbackplot(model,iter)
-    if iter%2 !=0
-        return
-    end
     global py_fgrid = rmmodel[:predict_y](X_grid)[1]
     y_fgrid = mapslices(argmax,py_fgrid,dims=2)
     global cols = reshape([RGB(py_fgrid[i,:]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
-    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,framestyle=:box)
+    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,grid=:hide,framestyle=:none,yflip=false,dpi=dpi)
     lims = (xlims(p1),ylims(p1))
-    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.2)
-    p1=plot!(p1,model[:feature][:Z][:value][:,1],model[:feature][:Z][:value][:,2],color=:black,t=:scatter,lab="")
+    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.3)
+    # p1=plot!(p1,model[:feature][:Z][:value][:,1],model[:feature][:Z][:value][:,2],color=:black,t=:scatter,lab="")
     p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(-0,100),t=:contour,colorbar=false,color=:gray,levels=10)
     xlims!(p1,lims[1]);ylims!(p1,lims[2])
     frame(anim,p1)
@@ -200,23 +209,25 @@ function gpflowloglike(y_test,y_pred)
 end
 
 function callback(model,iter)
-    y_pred = predict_y(alsmmodel,X_test)
-    py_pred = proba_y(alsmmodel,X_test)
-    push!(metrics,:err,1-acc(y_test,y_pred))
-    push!(metrics,:ll,-loglike(y_test,py_pred))
-    push!(elbos,:ELBO,ELBO(model))
-    push!(elbos,:NegGaussianKL,-AugmentedGaussianProcesses.GaussianKL(model))
-    push!(elbos,:ExpecLogLike,AugmentedGaussianProcesses.expecLogLikelihood(model))
-    for i in 1:model.nPrior
-        p = getlengthscales(model.kernel[i])
-        if length(p) > 1
-            for (j,p_j) in enumerate(p)
-                push!(kerparams,Symbol("l",i,"_",j),p_j)
+    if iter == 0 || iter%max(1,div(10^(floor(Int,log10(iter))),2))==0
+        y_pred = predict_y(alsmmodel,X_test)
+        py_pred = proba_y(alsmmodel,X_test)
+        push!(metrics,:err,1-acc(y_test,y_pred))
+        push!(metrics,:ll,-loglike(y_test,py_pred))
+        push!(elbos,:ELBO,ELBO(model))
+        push!(elbos,:NegGaussianKL,-AugmentedGaussianProcesses.GaussianKL(model))
+        push!(elbos,:ExpecLogLike,AugmentedGaussianProcesses.expecLogLikelihood(model))
+        for i in 1:model.nPrior
+            p = getlengthscales(model.kernel[i])
+            if length(p) > 1
+                for (j,p_j) in enumerate(p)
+                    push!(kerparams,Symbol("l",i,"_",j),p_j)
+                end
+            else
+                push!(kerparams,Symbol("l",i),p[1])
             end
-        else
-            push!(kerparams,Symbol("l",i),p[1])
+            push!(kerparams,Symbol("v",i),getvariance(model.kernel[i]))
         end
-        push!(kerparams,Symbol("v",i),getvariance(model.kernel[i]))
     end
 end
 
@@ -252,27 +263,29 @@ elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
 
-alsmmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),m,verbose=0,Autotuning=autotuning,IndependentPriors=!true)
+alsmmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),m,verbose=2,Autotuning=autotuning,IndependentPriors=!true)
 Z = copy(alsmmodel.Z)
 t_alsm = @elapsed train!(alsmmodel,iterations=N_iterations,callback=callback)
 
 global py_alsm = proba_y(alsmmodel,X_test)
 global y_alsm = predict_y(alsmmodel,X_test)
 AUC_alsm = 0
-println("Expected model accuracy is $(acc(y_test,y_alsm)), loglike : $(loglike(y_test,py_alsm)) and AUC $(AUC_alsm) in $t_alsm s")
-alsm_map = title!(callbackplot(alsmmodel,2),"Aug. LogSoftMax")
+println("Augmented model accuracy is $(acc(y_test,y_alsm)), loglike : $(loglike(y_test,py_alsm)) and AUC $(AUC_alsm) in $t_alsm s")
+alsm_map = callbackplot(alsmmodel,2)
+savefig(alsm_map,"../plotslikelihood/contour_alsm_σ$σ.pdf")
+alsm_map = title!(alsm_map,"Aug. LogSoftMax")
 alsm_metrics = deepcopy(metrics)
 alsm_kerparams = deepcopy(kerparams)
 alsm_elbo = deepcopy(elbos)
-ECE_alsm, MCE_alsm, cal_alsm, calh_alsm =calibration(y_test,py_alsm,nBins=nBins,plothist=true,plotline=true)
-
-
+ECE_alsm, MCE_alsm, cal_alsm, calh_alsm =calibration(y_test,py_alsm,nBins=nBins,plothist=true,plotline=true,meanonly=true,threshold=2)
+savefig(cal_alsm,"../plotslikelihood/cal_line_alsm_σ$σ.pdf")
+savefig(calh_alsm,"../plotslikelihood/cal_hist_alsm_σ$σ.pdf")
 ## LOGISTIC SOFTMAX
 elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
 
-lsmmodel = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),NumericalInference(:mcmc,nMC=1000,optimizer=VanillaGradDescent(η=0.01)),m,verbose=3,Autotuning=autotuning,IndependentPriors=!true)
+lsmmodel = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),NumericalInference(:mcmc,nMC=1000,optimizer=VanillaGradDescent(η=0.01)),m,verbose=2,Autotuning=autotuning,IndependentPriors=!true)
 lsmmodel.Z = Z
 t_lsm = @elapsed train!(lsmmodel,iterations=N_iterations,callback=callback)
 # @profiler train!(lsmmodel,iterations=2)
@@ -281,17 +294,21 @@ global py_lsm = proba_y(lsmmodel,X_test)
 global y_lsm = predict_y(lsmmodel,X_test)
 AUC_lsm = 0#multiclassAUC(lsmmodel,y_test,py_lsm)
 println("Expected model accuracy is $(acc(y_test,y_lsm)), loglike : $(loglike(y_test,py_lsm)) and AUC $(AUC_lsm) in $t_lsm s")
-lsm_map = title!(callbackplot(lsmmodel,2),"LogSoftMax")
+lsm_map = callbackplot(lsmmodel,2)
+savefig(lsm_map,"../plotslikelihood/contour_lsm_σ$σ.pdf")
+lsm_map = title!(lsm_map,"LogSoftMax")
 lsm_metrics = deepcopy(metrics)
 lsm_kerparams = deepcopy(kerparams)
 lsm_elbo = deepcopy(elbos)
-ECE_lsm, MCE_lsm, cal_lsm, calh_lsm = calibration(y_test,py_lsm,nBins=nBins,plothist=true,plotline=true)
+ECE_lsm, MCE_lsm, cal_lsm, calh_lsm = calibration(y_test,py_lsm,nBins=nBins,plothist=true,plotline=true,meanonly=true,threshold=2)
+savefig(cal_lsm,"../plotslikelihood/cal_line_lsm_σ$σ.pdf")
+savefig(calh_lsm,"../plotslikelihood/cal_hist_lsm_σ$σ.pdf")
 
 ## SOFTMAX
 elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
-smmodel = SVGP(X,y,kernel,SoftMaxLikelihood(),NumericalInference(:mcmc,optimizer=VanillaGradDescent(η=0.01)),m,verbose=3,Autotuning=autotuning,IndependentPriors=!true)
+smmodel = SVGP(X,y,kernel,SoftMaxLikelihood(),NumericalInference(:mcmc,optimizer=VanillaGradDescent(η=0.01)),m,verbose=2,Autotuning=autotuning,IndependentPriors=!true)
 smmodel.Z = Z
 t_sm = @elapsed train!(smmodel,iterations=N_iterations,callback=callback)
 # @profiler train!(smmodel,iterations=1)
@@ -299,28 +316,34 @@ global py_sm = proba_y(smmodel,X_test)
 global y_sm = predict_y(smmodel,X_test)
 AUC_sm = 0;#multiclassAUC(smmodel,y_test,py_sm)
 println("Expected model accuracy is $(acc(y_test,y_sm)), loglike : $(loglike(y_test,py_sm)) and AUC $(AUC_sm) in $t_sm s")
-sm_map= title!(callbackplot(smmodel,2),"SoftMax")
+sm_map = callbackplot(smmodel,2)
+savefig(sm_map,"../plotslikelihood/contour_sm_σ$σ.pdf")
+sm_map = title!(sm_map,"SoftMax")
 sm_metrics = deepcopy(metrics)
 sm_kerparams = deepcopy(kerparams)
 sm_elbo = deepcopy(elbos)
-ECE_sm, MCE_sm, cal_sm, calh_sm = calibration(y_test,py_sm,nBins=nBins,plothist=true,plotline=true)
-
+ECE_sm, MCE_sm, cal_sm, calh_sm = calibration(y_test,py_sm,nBins=nBins,plothist=true,plotline=true,meanonly=true,threshold=2)
+savefig(cal_sm,"../plotslikelihood/cal_line_sm_σ$σ.pdf")
+savefig(calh_sm,"../plotslikelihood/cal_hist_sm_σ$σ.pdf")
 ## ROBUST MAX
 elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
 rmmodel = gpflow.models[:SVGP](X, Float64.(reshape(y.-1,(length(y),1))),kern=gpflow.kernels[:RBF](N_dim,lengthscales=l,ARD=true),likelihood=gpflow.likelihoods[:MultiClass](N_class),num_latent=N_class,Z=Z[1])
-t_rm = @elapsed run_nat_grads_with_adam(rmmodel,N_iterations*10,callback=callbackgpflow,Stochastic=false)
+t_rm = @elapsed run_nat_grads_with_adam(rmmodel,N_iterations,callback=callbackgpflow,Stochastic=false)
 
 global py_rm = rmmodel[:predict_y](X_test)[1]
 AUC_rm = 0#multiclassAUC(y_test,py_rm)
 println("Expected model accuracy is $(gpflowacc(y_test,py_rm)), loglike : $(gpflowloglike(y_test,py_rm)) and AUC $(AUC_rm) in $t_sm s")
-rm_map= title!(gpflowcallbackplot(rmmodel,2),"RobustMax")
+rm_map = gpflowcallbackplot(rmmodel,2)
+savefig(rm_map,"../plotslikelihood/contour_rm_σ$σ.pdf")
+rm_map = title!(rm_map,"RobustMax")
 rm_metrics = deepcopy(metrics)
 rm_kerparams = deepcopy(kerparams)
 rm_elbo = deepcopy(elbos)
-ECE_rm, MCE_rm, cal_rm, calh_rm = calibration(y_test,py_rm,nBins=nBins,plothist=true,plotline=true,gpflow=true)
-
+ECE_rm, MCE_rm, cal_rm, calh_rm = calibration(y_test,py_rm,nBins=nBins,plothist=true,plotline=true,gpflow=true,meanonly=true,threshold=2)
+savefig(cal_rm,"../plotslikelihood/cal_line_rm_σ$σ.pdf")
+savefig(calh_rm,"../plotslikelihood/cal_hist_rm_σ$σ.pdf")
 
 ## Plotting part
 pmet_alsm = plot(alsm_metrics,title="Aug. LogSoftMax",markersize=0.0,linewidth=2.0)
@@ -364,8 +387,9 @@ display(pmap)
 plot(pmet,pelbo)
 
 cd(@__DIR__)
-savefig(pmet,"resultslikelihood/metrics_noise$(art_noise).png")
-savefig(pmetfin,"resultslikelihood/metricsfinal_noise$(art_noise).png")
-savefig(pmap,"resultslikelihood/plot_noise$(art_noise).png")
-savefig(pelbo,"resultslikelihood/elbo_noise$(art_noise).png")
-savefig(pker,"resultslikelihood/kernel_params_noise$(art_noise).png")
+savefig(pmet,"resultslikelihood/metrics_noise$(σ).png")
+savefig(pmetfin,"resultslikelihood/metricsfinal_noise$(σ).png")
+savefig(pmap,"resultslikelihood/plot_noise$(σ).png")
+savefig(pelbo,"resultslikelihood/elbo_noise$(σ).png")
+savefig(pker,"resultslikelihood/kernel_params_noise$(σ).png")
+writedlm("resultslikelihood/results_$σ.txt",hcat([acc(y_test,y_alsm),loglike(y_test,py_alsm),mean(ECE_alsm),mean(MCE_alsm)],[acc(y_test,y_lsm),loglike(y_test,py_lsm),mean(ECE_lsm),mean(MCE_lsm)],[acc(y_test,y_sm),loglike(y_test,py_sm),mean(ECE_sm),mean(MCE_sm)],[gpflowacc(y_test,py_rm),gpflowloglike(y_test,py_rm),mean(ECE_rm),mean(MCE_rm)]))
