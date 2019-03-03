@@ -97,7 +97,7 @@ function calibration_R(y_test,y_pred;nBins::Int=15,gpflow=false)
 end
 
 function plot_likelihood_diff()
-    σs = collect(0.1:0.1:0.5)
+    σs = collect(0.1:0.1:0.6)
     nσ = length(σs)
     defdict = Dict("acc"=>Float64[],"ll"=>Float64[],"ece"=>Float64[])
     global res = [("alsm",deepcopy(defdict)),("lsm",deepcopy(defdict)),("sm",deepcopy(defdict)),("rm",deepcopy(defdict))]
@@ -111,13 +111,37 @@ function plot_likelihood_diff()
         end
     end
     ps = []
+    allacclims = []
+    alllllims = []
     linewidth=3.0
     for (i,obj) in enumerate(res)
-        p = plot(σs,1.0.-obj[2]["acc"],xlabel="σ²",ylabel="Test Error",lab="",linewidth=linewidth,tickfontcolor=1)
+        p = plot(σs,1.0.-obj[2]["acc"],xlabel="σ²",ylabel="Test Error",lab="",linewidth=linewidth,tickfontcolor=:blue,color=:blue)
+        push!(allacclims,ylims(p))
         ptwin = twinx(p)
-        plot!(ptwin,σs,-obj[2]["ll"],xlabel="σ²",ylabel="Neg. Log Likelihood",lab="",linewidth=linewidth,tickfontcolor=2)
+        plot!(ptwin,σs,-obj[2]["ll"],xlabel="σ²",ylabel="Neg. Log Likelihood",lab="",linewidth=linewidth,tickfontcolor=:red,color=:red)
+        push!(alllllims,ylims(ptwin))
+        push!(ps,p)
+    end
+    minlimacc = Inf; maxlimacc = -Inf
+    for (x,y) in allacclims
+        minlimacc = min(x,minlimacc); maxlimacc = max(y,maxlimacc)
+    end
+    limacc= (minlimacc,maxlimacc)
+    minlimll = Inf; maxlimll = -Inf
+    for (x,y) in alllllims
+        minlimll = min(x,minlimll); maxlimll = max(y,maxlimll)
+    end
+    limll= (minlimll,maxlimll)
+    ps=[]
+    for (i,obj) in enumerate(res)
+        p = plot(σs,1.0.-obj[2]["acc"],xlabel="σ²",ylabel="Test Error",lab="",linewidth=linewidth,guidefontcolor=:blue,ytickfontcolor=:blue,color=:blue,ylims=limacc)
+        push!(allacclims,ylims(p))
+        ptwin = twinx(p)
+        plot!(ptwin,σs,-obj[2]["ll"],xlabel="σ²",ylabel="Neg. Log Likelihood",lab="",linewidth=linewidth,yguidefontcolor=:red,ytickfontcolor=:red,color=:red,ylims=limll)
+        push!(alllllims,ylims(ptwin))
         savefig(p,"../plotslikelihood/sigma_comparison_"*obj[1]*".pdf")
         push!(ps,p)
     end
+
     plot(ps...,link=:all,layout=(1,length(res)))
 end

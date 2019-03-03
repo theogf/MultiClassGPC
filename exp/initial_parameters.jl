@@ -28,7 +28,7 @@ function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,
   param["ALR"] = ALR #Is the method using adaptive learning rate (in case of the stochastic case)
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
-  param["ATFrequency"] = param["Stochastic"] ? 3 : 1 #Number of iterations between every autotuning
+  param["ATFrequency"] = param["Stochastic"] ? 1 : 1 #Number of iterations between every autotuning
   param["κ_s"] = 1.0;  param["τ_s"] = 40; #Parameters for learning rate of Stochastic gradient descent when ALR is not used
   param["ϵ"] = main_param["ϵ"]; param["Window"] = main_param["Window"]; #Convergence criteria (checking parameters norm variation on a window)
   param["ConvCriter"] = main_param["ConvCriter"]

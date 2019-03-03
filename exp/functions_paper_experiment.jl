@@ -384,20 +384,20 @@ function PrintResults(results,method_name,writing_order)
 end
 
 
-function WriteLastProb(tm::TestingModel,location,X_test,y_test)
+function WriteLastProba(tm::TestingModel,location,X_test,y_test)
     fold = String(location*"/"*(doAutotuning ? "AT_" : "")*(doStochastic ? "S_" : "")*"Experiment")
     if !isdir(fold); mkdir(fold); end;
     fold = fold*"/"*tm.DatasetName*"Dataset"
     y_p = []
     if tm.MethodType == "SCGPMC"
-        y_p = proba_y(model,X_test)
-        reorder = sortperm(parse(Int64,string.(names(y_p))))
+        y_p = proba_y(tm.Model[1],X_test)
+        reorder = sortperm(parse.(Int64,string.(names(y_p))))
         y_p = Matrix(y_p)[:,reorder]
     elseif tm.MethodType == "EPGPMC"
-        y_p = R"predictMGPC($(testmodel[i]),$(X_test))"
-        y_p = Matrix(rcopy(y_p))[:,2:end]
+        y_p = R"predictMGPC($(tm.Model[1]),$(X_test))$prob"
+        y_p = Matrix(rcopy(y_p))
     elseif tm.MethodType == "SVGPMC"
-        y_p = model[:predict_y](X_test)[1]
+        y_p = tm.Model[1][:predict_y](X_test)[1]
     end
     y_p = hcat(y_test,y_p)
     if !isdir(fold); mkdir(fold); end;

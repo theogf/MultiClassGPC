@@ -146,7 +146,7 @@ for (name,testmodel) in TestModels
     if doWrite
         top_fold = "results";
         if !isdir(top_fold); mkdir(top_fold); end;
-        WriteLastProba(testmodel,top_fold)
+        WriteLastProba(testmodel,top_fold,X_test,y_test)
         WriteResults(testmodel,top_fold,writing_order,false) #Write the results in an adapted format into a folder
     end
 end #Loop over the models
