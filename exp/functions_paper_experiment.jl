@@ -213,7 +213,7 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
                 # loglike_exp = LogLikelihood(model,y_test,y_exp)
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
-                a[5] = -ELBO(model)
+                a[5] = ELBO(model)
                 y_pred = Float64.(zero(y_test))
                 for i in unique(y_test)
                     y_pred[y_test.==i] = y_p[Symbol(i)][y_test.==i]
