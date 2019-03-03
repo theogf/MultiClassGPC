@@ -60,12 +60,10 @@ kerparams = MVHistory()
 elbos = MVHistory()
 anim  = Animation()
 function callbackplot(model,iter)
-    if iter%2 !=0
-        return
-    end
-    y_fgrid =  model.predict(X_grid)
-    global py_fgrid = model.predictproba(X_grid)
-    global cols = reshape([RGB(permutedims(Vector(py_fgrid[i,:]))[collect(values(sort(model.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    y_fgrid =  predict_y(model,X_grid)
+    # y_fgrid =  model.predict(X_grid)
+    global py_fgrid = proba_y(model,X_grid)
+    global cols = reshape([RGB(permutedims(Vector(py_fgrid[i,:]))[collect(values(sort(model.likelihood.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
     global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,framestyle=:box)
     lims = (xlims(p1),ylims(p1))
@@ -135,18 +133,21 @@ lparams = MVHistory()
 vparams = MVHistory()
 params = MVHistory()
 
-model = AugmentedGaussianProcesses.GibbsSamplerMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=1,IndependentGPs=true,burninsamples=0)
-model.train(iterations=1000)
+model =VGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),GibbsSampling(nBurnin=0,samplefrequency=1),verbose=2,Autotuning=!true,IndependentPriors=!true)
+# model = AugmentedGaussianProcesses.GibbsSamplerMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,Autotuning=false,AutotuningFrequency=1,burninsamples=0)
+train!(model,iterations=1000)
 
 # alsmmodel.train(iterations=10)
 # @profiler alsmmodel.train(iterations=10)
 # @prof}iler AugmentedGaussianProcesses.Gradient_Expec(alsmmodel)
 # @btime AugmentedGaussianProcesses.Gradient_Expec(alsmmodel)
-global py_alsm = model.predictproba(X_test)
-global y_alsm = model.predict(X_test)
+global py_alsm = proba_y(model,X_test)
+global y_alsm = predict_y(model,X_test)
+# global py_alsm = model.predictproba(X_test)
+# global y_alsm = model.predict(X_test)
 println("Expected model Accuracy is $(acc(y_test,y_alsm)) and loglike : $(loglike(y_test,py_alsm))")#" in $t_alsm s")
 ##
-map = title!(callbackplot(model,2),"Hybrid LogSoftMax");
+map = title!(callbackplot(model,2),"Gibbs Sampling");
 metrics = deepcopy(metrics)
 params = deepcopy(params)
 

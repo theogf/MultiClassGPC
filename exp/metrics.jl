@@ -30,15 +30,15 @@ function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,g
             end
             p = min(max(0.0,p),1.0)
             bin = min(findlast(x->p>=x,edges),nBins)
-            nP[k][bin] += 1
-            accs[k][bin] += k==(y_test[i]+bias)
-            conf[k][bin] += p
+            nP[Int(k)][bin] += 1
+            accs[Int(k)][bin] += k==(y_test[i]+bias)
+            conf[Int(k)][bin] += p
             non_empty[bin] = true
         end
-        accs[k] ./= ifelse.(nP[k].!=0,nP[k],ones(length(nP[k])))
-        conf[k] ./= ifelse.(nP[k].!=0,nP[k],ones(length(nP[k])))
-        ECE[k] = sum(nP[k].*abs.(accs[k].-conf[k]))./ntest
-        MCE[k] = maximum(abs.(accs[k].-conf[k]))
+        accs[Int(k)] ./= ifelse.(nP[Int(k)].!=0,nP[Int(k)],ones(length(nP[Int(k)])))
+        conf[Int(k)] ./= ifelse.(nP[Int(k)].!=0,nP[Int(k)],ones(length(nP[Int(k)])))
+        ECE[Int(k)] = sum(nP[Int(k)].*abs.(accs[Int(k)].-conf[Int(k)]))./ntest
+        MCE[Int(k)] = maximum(abs.(accs[Int(k)].-conf[Int(k)]))
     end
 
     ps = []

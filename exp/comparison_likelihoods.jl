@@ -6,6 +6,7 @@ using PyCall
 using ValueHistories
 using Plots
 using LinearAlgebra
+using GradDescent
 include("metrics.jl")
 pyplot()
 clibrary(:cmocean)
@@ -21,7 +22,7 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
     if Stochastic
         gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
     else
-        gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
+        gamma_max = 1.0;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
     end
     gamma = tf.Variable(gamma_start,dtype=tf.float64);    gamma_incremented = tf.where(tf.less(gamma,gamma_max),gamma*gamma_step,gamma_max)
     op_increment_gamma = tf.assign(gamma,gamma_incremented)
@@ -82,28 +83,45 @@ function latent(X)
     return sqrt.(X[:,1].^2+X[:,2].^2)
 end
 N_dim=2
-N_iterations = 500
+N_iterations = 1000
 m = 50
 art_noise = 0.5
-
-X_clean = (rand(N_data,N_dim)*2.0).-1.0
-y = zeros(Int64,N_data); y_noise = similar(y)
-function classify(X,y)
-    for i in 1:size(X,1)
-        if X[i,2] < min(0,-X[i,1])
-            y[i] = 1
-        elseif X[i,2] > max(0,X[i,1])
-            y[i] = 2
-        else
-            y[i] = 3
+##
+    X_clean = (rand(N_data,N_dim)*2.0).-1.0
+    y = zeros(Int64,N_data); y_noise = similar(y)
+    function classify(X,y)
+        for i in 1:size(X,1)
+            if X[i,2] < min(0,-X[i,1])
+                y[i] = 1
+            elseif X[i,2] > max(0,X[i,1])
+                y[i] = 2
+            else
+                y[i] = 3
+            end
         end
+        return y
     end
-    return y
-end
-X= X_clean+rand(Normal(0,art_noise),N_data,N_dim)
-classify(X_clean,y);classify(X,y_noise);
-bayes_error = count(y.!=y_noise)/length(y)
-
+    X= X_clean+rand(Normal(0,art_noise),N_data,N_dim)
+    classify(X_clean,y);classify(X,y_noise);
+    bayes_error = count(y.!=y_noise)/length(y)
+##
+    σ = 0.3; N_class = N_dim+1
+    centers = zeros(N_class,N_dim)
+    for i in 1:N_dim
+        centers[i,i] = 1
+    end
+    centers[end,:] = (1+sqrt(N_class))/N_dim*ones(N_dim)
+    centers./= sqrt(N_dim)
+    distr = [MvNormal(centers[i,:],σ) for i in 1:N_class]
+    X = zeros(Float64,N_data,N_dim)
+    y = zeros(Int64,N_data)
+    true_py = zeros(Float64,N_data)
+    for i in 1:N_data
+        y[i] = rand(1:N_class)
+        X[i,:] = rand(distr[y[i]])
+        true_py[i] = pdf(distr[y[i]],X[i,:])/sum(pdf(distr[k],X[i,:]) for k in 1:N_class)
+    end
+##
 xmin = minimum(X); xmax = maximum(X)
 X,X_test,y,y_test = sp.train_test_split(X,y,test_size=0.33)
 x_grid = range(xmin,length=N_grid,stop=xmax)
@@ -186,10 +204,10 @@ function callback(model,iter)
     py_pred = proba_y(alsmmodel,X_test)
     push!(metrics,:err,1-acc(y_test,y_pred))
     push!(metrics,:ll,-loglike(y_test,py_pred))
-    push!(elbos,:ELBO,-ELBO(model))
+    push!(elbos,:ELBO,ELBO(model))
     push!(elbos,:NegGaussianKL,-AugmentedGaussianProcesses.GaussianKL(model))
     push!(elbos,:ExpecLogLike,AugmentedGaussianProcesses.expecLogLikelihood(model))
-    for i in 1:model.nLatent
+    for i in 1:model.nPrior
         p = getlengthscales(model.kernel[i])
         if length(p) > 1
             for (j,p_j) in enumerate(p)
@@ -210,7 +228,7 @@ function callbackgpflow(model,session,iter)
       model[:anchor](session)
       p = Array(model[:kern][:lengthscales][:value])
       for (j,p_j) in enumerate(p)
-          push!(kerparams,Symbol("l_",j),p_j)
+          push!(kerparams,Symbol("l1_",j),p_j)
       end
       push!(kerparams,:v,Array(model[:kern][:variance][:value])[1])
 end
@@ -229,16 +247,13 @@ nBins = 10
 autotuning = true
 
 
-### AUG. LOGISTIC SOFTMAX
+## AUG. LOGISTIC SOFTMAX
 elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
 
-alsmmodel = AugmentedGaussianProcesses.SparseMultiClass(X,y,verbose=0,ϵ=1e-20,kernel=kernel,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=m)
+alsmmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),m,verbose=0,Autotuning=autotuning,IndependentPriors=!true)
 Z = copy(alsmmodel.Z)
-# train!(alsmmodel,iterations=100)
-# @profiler t_alsm = @elapsed alsmmodel.train(iterations=100)
-# Atom.@trace AugmentedGaussianProcesses.updateHyperParameters!(alsmmodel)
 t_alsm = @elapsed train!(alsmmodel,iterations=N_iterations,callback=callback)
 
 global py_alsm = proba_y(alsmmodel,X_test)
@@ -257,12 +272,13 @@ elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
 
-lsmmodel = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=m)
-lsmmodel.inducingPoints = Z
-t_lsm = @elapsed lsmmodel.train(iterations=N_iterations,callback=callback)
+lsmmodel = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),NumericalInference(:mcmc,nMC=1000,optimizer=VanillaGradDescent(η=0.01)),m,verbose=3,Autotuning=autotuning,IndependentPriors=!true)
+lsmmodel.Z = Z
+t_lsm = @elapsed train!(lsmmodel,iterations=N_iterations,callback=callback)
+# @profiler train!(lsmmodel,iterations=2)
 
-global py_lsm = lsmmodel.predictproba(X_test)
-global y_lsm = lsmmodel.predict(X_test)
+global py_lsm = proba_y(lsmmodel,X_test)
+global y_lsm = predict_y(lsmmodel,X_test)
 AUC_lsm = 0#multiclassAUC(lsmmodel,y_test,py_lsm)
 println("Expected model accuracy is $(acc(y_test,y_lsm)), loglike : $(loglike(y_test,py_lsm)) and AUC $(AUC_lsm) in $t_lsm s")
 lsm_map = title!(callbackplot(lsmmodel,2),"LogSoftMax")
@@ -270,16 +286,17 @@ lsm_metrics = deepcopy(metrics)
 lsm_kerparams = deepcopy(kerparams)
 lsm_elbo = deepcopy(elbos)
 ECE_lsm, MCE_lsm, cal_lsm, calh_lsm = calibration(y_test,py_lsm,nBins=nBins,plothist=true,plotline=true)
+
 ## SOFTMAX
 elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
-smmodel = AugmentedGaussianProcesses.SparseSoftMaxMultiClass(X,y,verbose=2,ϵ=1e-20,kernel=kernel,optimizer=0.1,Autotuning=autotuning,AutotuningFrequency=1,IndependentGPs=true,m=m)
-smmodel.inducingPoints = Z
-t_sm = @elapsed smmodel.train(iterations=N_iterations,callback=callback)
-
-global py_sm = smmodel.predictproba(X_test)
-global y_sm = smmodel.predict(X_test)
+smmodel = SVGP(X,y,kernel,SoftMaxLikelihood(),NumericalInference(:mcmc,optimizer=VanillaGradDescent(η=0.01)),m,verbose=3,Autotuning=autotuning,IndependentPriors=!true)
+smmodel.Z = Z
+t_sm = @elapsed train!(smmodel,iterations=N_iterations,callback=callback)
+# @profiler train!(smmodel,iterations=1)
+global py_sm = proba_y(smmodel,X_test)
+global y_sm = predict_y(smmodel,X_test)
 AUC_sm = 0;#multiclassAUC(smmodel,y_test,py_sm)
 println("Expected model accuracy is $(acc(y_test,y_sm)), loglike : $(loglike(y_test,py_sm)) and AUC $(AUC_sm) in $t_sm s")
 sm_map= title!(callbackplot(smmodel,2),"SoftMax")
@@ -293,7 +310,7 @@ elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
 rmmodel = gpflow.models[:SVGP](X, Float64.(reshape(y.-1,(length(y),1))),kern=gpflow.kernels[:RBF](N_dim,lengthscales=l,ARD=true),likelihood=gpflow.likelihoods[:MultiClass](N_class),num_latent=N_class,Z=Z[1])
-t_rm = @elapsed run_nat_grads_with_adam(rmmodel,N_iterations/10,callback=callbackgpflow,Stochastic=false)
+t_rm = @elapsed run_nat_grads_with_adam(rmmodel,N_iterations*10,callback=callbackgpflow,Stochastic=false)
 
 global py_rm = rmmodel[:predict_y](X_test)[1]
 AUC_rm = 0#multiclassAUC(y_test,py_rm)
@@ -314,23 +331,23 @@ pmet_sm = plot(sm_metrics,title="SoftMax",markersize=0.0,linewidth=2.0)
 pmet_sm = hline!(pmet_sm,[bayes_error],lab="",line=(2.0,:red))
 pmet_rm = plot(rm_metrics,title="RobustMax",markersize=0.0,linewidth=2.0)
 pmet_rm = hline!(pmet_rm,[bayes_error],lab="",line=(2.0,:red))
-met_lims = (min(ylims(pmet_alsm)[1],ylims(pmet_lsm)[1],ylims(pmet_sm)[1],ylims(pmet_rm)[1]),max(ylims(pmet_alsm)[2],ylims(pmet_lsm)[2],ylims(pmet_sm)[2],ylims(pmet_rm)[2]))
+# met_lims = (min(ylims(pmet_alsm)[1],ylims(pmet_lsm)[1],ylims(pmet_sm)[1],ylims(pmet_rm)[1]),max(ylims(pmet_alsm)[2],ylims(pmet_lsm)[2],ylims(pmet_sm)[2],ylims(pmet_rm)[2]))
 
 pker_alsm = plot(alsm_kerparams,title="Aug. LogSoftMax",yaxis=:log,markersize=0.0,linewidth=2.0)
 pker_lsm = plot(lsm_kerparams,title="LogSoftMax",yaxis=:log,markersize=0.0,linewidth=2.0)
 pker_sm = plot(sm_kerparams,title="SoftMax",yaxis=:log,markersize=0.0,linewidth=2.0)
 pker_rm = plot(rm_kerparams,title="RobustMax",yaxis=:log,markersize=0.0,linewidth=2.0)
-ker_lims = (min(ylims(pker_alsm)[1],ylims(pker_lsm)[1],ylims(pker_sm)[1],ylims(pker_rm)[1]),max(ylims(pker_alsm)[2],ylims(pker_lsm)[2],ylims(pker_sm)[2],ylims(pker_rm)[2]))
+# ker_lims = (min(ylims(pker_alsm)[1],ylims(pker_lsm)[1],ylims(pker_sm)[1],ylims(pker_rm)[1]),max(ylims(pker_alsm)[2],ylims(pker_lsm)[2],ylims(pker_sm)[2],ylims(pker_rm)[2]))
 
 pelbo_alsm = plot(lsm_elbo,title="Aug. LogSoftMax",markersize=0.0,linewidth=2.0)
 pelbo_lsm = plot(lsm_elbo,title="LogSoftMax",markersize=0.0,linewidth=2.0)
 pelbo_sm = plot(sm_elbo,title="SoftMax",markersize=0.0,linewidth=2.0)
 pelbo_rm = plot(rm_elbo,title="RobustMax",markersize=0.0,linewidth=2.0)
-elbo_lims = (min(ylims(pelbo_alsm)[1],ylims(pelbo_lsm)[1],ylims(pelbo_sm)[1],ylims(pelbo_rm)[1]),max(ylims(pelbo_alsm)[2],ylims(pelbo_lsm)[2],ylims(pelbo_sm)[2],ylims(pelbo_rm)[2]))
+# elbo_lims = (min(ylims(pelbo_alsm)[1],ylims(pelbo_lsm)[1],ylims(pelbo_sm)[1],ylims(pelbo_rm)[1]),max(ylims(pelbo_alsm)[2],ylims(pelbo_lsm)[2],ylims(pelbo_sm)[2],ylims(pelbo_rm)[2]))
 
-pmet = plot(ylims!(pmet_alsm,met_lims),ylims!(pmet_lsm,met_lims),ylims!(pmet_sm,met_lims),ylims!(pmet_rm,met_lims))
-pker = plot(ylims!(pker_alsm,ker_lims),ylims!(pker_lsm,ker_lims),ylims!(pker_sm,ker_lims),ylims!(pker_rm,ker_lims))
-pelbo = plot(ylims!(pelbo_alsm,elbo_lims),ylims!(pelbo_lsm,elbo_lims),ylims!(pelbo_sm,elbo_lims),ylims!(pelbo_rm,elbo_lims))
+pmet = plot(pmet_alsm,pmet_lsm,pmet_sm,pmet_rm,link=:all)
+pker = plot(pker_alsm,pker_lsm,pker_sm,pker_rm,link=:all)
+pelbo = plot(pelbo_alsm,pelbo_lsm,pelbo_sm,pelbo_rm,link=:y)
 pmap = plot(alsm_map,lsm_map,sm_map,rm_map)
 
 methods_name = ["Aug. LogSoftMax","LogSoftMax","SoftMax","RobustMax"]
