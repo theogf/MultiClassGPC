@@ -11,4 +11,4 @@ data/*
 dummy.jl
 cluster/*
 cluster_save/*
-cluster_save*
+cluster_*

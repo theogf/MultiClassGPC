@@ -59,7 +59,7 @@ main_param["maxIter"]=MaxIter
 main_param["γ"] = 0.0
 main_param["M"] = args["indpoints"]!=0 ? args["indpoints"] : min(100,floor(Int64,0.2*nSamples)) #Number of inducing points
 main_param["Kernel"] = "ard"
-main_param["Kernel"] = "iso"
+# main_param["Kernel"] = "iso"
 # main_param["Kernel"] = "ard"
 l = initial_lengthscale(X_train)
 main_param["Θ"] = sqrt(l) #initial Hyperparameter of the kernel

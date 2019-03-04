@@ -65,7 +65,11 @@ function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,g
                 push!(hists,bar(mean_bins,accs[k],title="y=$k",lab="",color=K<=3 ? col_doc[k] : k,xlims=(0,1),ylims=(0,1),xlabel="Confidence",ylabel="Accuracy"))
             end
         end
-        global percent = text.(string.(format.(tot_bin[tot_bin.>threshold]/(K*ntest)*100,width=2),"%"),:bottom,12)
+        # g=:speed
+        # color_grad = min.(tot_bin[tot_bin.>threshold]/(sum(tot_bin)),maximum(tot_bin[2:end]))
+        # C(g) = RGB[g[z] for z=color_grad]
+        # colors_grad = cgrad(g) |> C
+        global percent = text.(string.(format.(tot_bin/(sum(tot_bin))*100,width=1,precision=1,suffix="%")),:bottom,12)
         push!(hists,bar(mean_bins[tot_bin.>threshold],(sum(accs[k][tot_bin.>threshold] for k in 1:K)./sum(nP[k].!=0 for k in 1:K)[tot_bin.>threshold]) ,lab="",xlims=(0,1),ylims=(0,1),bar_width=0.1,xlabel="Confidence",ylabel="Accuracy",dpi=dpi))
         annotate!(hists[1],collect(zip(mean_bins[tot_bin.>threshold],sum(accs[k][tot_bin.>threshold] for k in 1:K)./sum(nP[k].!=0 for k in 1:K)[tot_bin.>threshold],percent)))
         # display(plot(hists...))
