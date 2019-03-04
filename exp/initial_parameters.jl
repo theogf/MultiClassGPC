@@ -19,13 +19,13 @@ function DefaultParameters()
 end
 
 #Create a default parameters dictionary for CGPC
-function CGPMCParameters(;Stochastic=true,Sparse=true,ALR=true,Autotuning=false,dohybrid=false,main_param=DefaultParameters())
+function CGPMCParameters(;Stochastic=true,Sparse=true,optimizer=ALRSVI(),Autotuning=false,dohybrid=false,main_param=DefaultParameters())
   param = Dict{String,Any}()
   param["nClasses"] = main_param["nClasses"]
   param["nSamples"] = main_param["nSamples"]
   param["Stochastic"] = Stochastic #Is the method stochastic
   param["Sparse"] = Sparse #Is the method using inducing points
-  param["ALR"] = ALR #Is the method using adaptive learning rate (in case of the stochastic case)
+  param["Optimizer"] = optimizer #Is the method using adaptive learning rate (in case of the stochastic case)
   param["Autotuning"] = main_param["Autotuning"] #Is hyperoptimization performed
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
   param["ATFrequency"] = param["Stochastic"] ? 1 : 1 #Number of iterations between every autotuning
@@ -63,9 +63,9 @@ function SVGPMCParameters(;Stochastic=true,main_param=DefaultParameters())
   param["PointOptimization"] = main_param["PointOptimization"] #Is hyperoptimization on inducing points performed
   param["ϵ"] = main_param["ϵ"]
   if main_param["Kernel"] == "iso"
-  param["Kernel"] =   gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false)
+  param["Kernel"] =   gpflow[:kernels][:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=false)
 elseif main_param["Kernel"] == "ard"
-    param["Kernel"] = gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true)
+    param["Kernel"] = gpflow[:kernels][:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true)
   end
   param["BatchSize"] = main_param["BatchSize"]
   param["M"] = main_param["M"]

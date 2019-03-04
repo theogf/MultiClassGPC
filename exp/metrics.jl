@@ -1,8 +1,12 @@
 using RCall
+using DelimitedFiles
+using Plots
+using Formatting
+pyplot()
 R"library(CalibratR)"
 
 dpi=600
-function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,gpflow=false,meanonly=false,threshold=0)
+function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,gpflow=false,meanonly=false,threshold=0,title="")
     edges = collect(range(0.0,1.0,length=nBins+1))
     mean_bins = 0.5*(edges[2:end]+edges[1:end-1])
     ntest = length(y_test)
@@ -43,15 +47,17 @@ function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,g
     end
 
     ps = []
-    msize = 20.0
+    msize = 20/3*K
     if plotline
         if !meanonly
             for k in 1:K
                 push!(ps,plot!(plot(conf[k][nP[k].!=0],accs[k][nP[k].!=0],title="y=$(k-bias)",lab="",color=K==3 ? col_doc[k] : k,marker=:circle,markersize=msize*nP[k][nP[k].!=0]/ntest),x->x,0:1,color=:black,lab="",xlabel="Confidence",ylabel="Accuracy",xlims=(-0.1,1.1),ylims=(0,1)))
             end
         end
-        push!(ps,plot!(plot((sum(nP[k].*conf[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],(sum(nP[k].*accs[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],lab="",xlabel="Confidence",ylabel="Accuracy",color=:black,marker=:circle,markersize=(msize.*tot_bin/(3*ntest))[tot_bin.>threshold]),x->x,0:1,color=:black,lab="",xlims=(-0.05,1.05),ylims=(0,1),dpi=dpi))
-        display(plot(ps...))
+        msizechoice = msize*tot_bin[tot_bin.>threshold]/(K*ntest)
+        # push!(ps,plot!(plot((sum(nP[k].*conf[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],(sum(nP[k].*accs[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],lab="",xlabel="Confidence",ylabel="Accuracy",color=:black,marker=:circle,series_annotations=percent),x->x,0:1,color=:black,lab="",xlims=(-0.05,1.05),ylims=(0,1),dpi=dpi))
+        push!(ps,plot!(plot((sum(nP[k].*conf[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],(sum(nP[k].*accs[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],lab="",xlabel="Confidence",ylabel="Accuracy",color=:black,marker=:circle,markersize=msizechoice),x->x,0:1,color=:black,lab="",xlims=(-0.05,1.05),ylims=(0,1),dpi=dpi))
+        # display(plot(ps...))
     end
     hists = []
     if plothist
@@ -60,15 +66,17 @@ function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,g
                 push!(hists,bar(mean_bins,accs[k],title="y=$k",lab="",color=K<=3 ? col_doc[k] : k,xlims=(0,1),ylims=(0,1),xlabel="Confidence",ylabel="Accuracy"))
             end
         end
+        global percent = text.(string.(format.(tot_bin[tot_bin.>threshold]/(K*ntest)*100,width=2),"%"),:bottom,12)
         push!(hists,bar(mean_bins[tot_bin.>threshold],(sum(accs[k][tot_bin.>threshold] for k in 1:K)./sum(nP[k].!=0 for k in 1:K)[tot_bin.>threshold]) ,lab="",xlims=(0,1),ylims=(0,1),bar_width=0.1,xlabel="Confidence",ylabel="Accuracy",dpi=dpi))
-        display(plot(hists...))
+        annotate!(hists[1],collect(zip(mean_bins[tot_bin.>threshold],sum(accs[k][tot_bin.>threshold] for k in 1:K)./sum(nP[k].!=0 for k in 1:K)[tot_bin.>threshold],percent)))
+        # display(plot(hists...))
     end
     if plothist && !plotline
-        return ECE,MCE,plot(hists...)
+        return ECE,MCE,plot(hists...,title=title)
     elseif plothist && plotline
-        return ECE,MCE,plot(ps...),plot(hists...),nP,accs,conf
+        return ECE,MCE,plot(ps...,title=title),plot(hists...,title=title)
     elseif !plothist && plotline
-        return ECE,MCE,plot(ps...)
+        return ECE,MCE,plot(ps...,title=title)
     else
         return ECE,MCE
     end
@@ -144,4 +152,24 @@ function plot_likelihood_diff()
     end
 
     plot(ps...,link=:all,layout=(1,length(res)))
+end
+
+function calibration_plots(dataset::String,write=false)
+    cd(@__DIR__)
+    methods = ["SCGPMC","SCGPMC_shared","SVGPMC","EPGPMC"]
+    global results = Dict{String,Matrix}()
+    plotshist = Dict{String,Any}()
+    plotsline = Dict{String,Any}()
+    y_test = []
+    for m in methods
+        data = readdlm("../cluster/AT_S_Experiment/"*dataset*"Dataset/y_prob_"*m*".txt")
+        results[m] = data[:,2:end]
+        y_test = Int64.(data[:,1])
+        n = length(y_test)
+        ECE,MCE,plotsline[m],plotshist[m] = calibration(y_test,results[m],plothist=true,plotline=true,meanonly=true,gpflow=true,title=m,threshold=0)#div(n,100))
+    end
+    display(plot(values(plotsline)...))
+    savefig(plot(values(plotsline)...),"resultsexps/"*dataset*"_linecalibration.png")
+    display(plot(values(plotshist)...))
+    savefig(plot(values(plotshist)...),"resultsexps/"*dataset*"_histcalibration.png")
 end

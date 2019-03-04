@@ -11,16 +11,16 @@ Set of functions for efficient testing.
   using Distances, LinearAlgebra, Distributions,StatsBase, GradDescent
   # using MATLAB
   using AugmentedGaussianProcesses
-  @pyimport gpflow
-  @pyimport tensorflow as tf
+  gpflow = pyimport("gpflow")
+  tf = pyimport("tensorflow")
   # mat"addpath ~/Competitors/augment-reduce/src"
   # mat"addpath ~/Competitors/augment-reduce/src/aux"
   # mat"addpath ~/Competitors/augment-reduce/src/infer"
   # @pyimport TTGP.projectors as ttgpproj
   # @pyimport TTGP.covariance as ttgpcovariance
   # @pyimport TTGP.gpc_runner as ttgpcrun
-  @pyimport sklearn.datasets as sk
-  @pyimport sklearn.model_selection as sp
+  sk = pyimport("sklearn.datasets")
+  sp = pyimport("sklearn.model_selection")
   using RCall
   R"rm(list = ls())"#Clear R REPL
   if doStochastic
@@ -38,21 +38,17 @@ Set of functions for efficient testing.
   # export ComputePrediction, ComputePredictionAccuracy
 
 function get_Dataset(datasetname::String)
-    println("Getting dataset")
     data = h5read("../data/"*datasetname*".h5","data/data")
     # data = Matrix{Float64}(CSV.read("../data/"*datasetname*".csv",header=false))
     X = data[:,1:end-1]; y = floor.(Int64,data[:,end]);
-    println("Dataset loaded")
     return (X,y,datasetname)
 end
 
 function get_train_test(datasetname::String)
-    println("Getting dataset")
     X_train = h5read("../data/"*datasetname*".h5","data/X_train")
     X_test = h5read("../data/"*datasetname*".h5","data/X_test")
     y_train = Int64.(h5read("../data/"*datasetname*".h5","data/y_train"))
     y_test = Int64.(h5read("../data/"*datasetname*".h5","data/y_test"))
-    println("Dataset loaded")
     return (X_train,y_train,X_test,y_test,datasetname)
 end
 
@@ -85,14 +81,12 @@ include("initial_parameters.jl")
 function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
     y_cmap = countmap(y)
     if tm.MethodType == "BCGPMC"
-        tm.Model[i] = AugmentedGaussianProcesses.MultiClass(X,y;kernel=tm.Param["Kernel"],Autotuning=tm.Param["Autotuning"],AutotuningFrequency=tm.Param["ATFrequency"],ϵ=tm.Param["ϵ"],
-            verbose=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? Float64.(zero(y)) : [0.0],IndependentGPs=tm.Param["independent"])
+        tm.Model[i] = VGP(X,y,tm.Param["Kernel"],AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),Autotuning=tm.Param["Autotuning"],atfrequency=tm.Param["ATFrequency"],verbose=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? Float64.(zero(y)) : [0.0],IndependentPriors=tm.Param["independent"])
     elseif tm.MethodType == "SCGPMC" || tm.MethodType == "HSCGPMC"
         # tm.Param["time_init"] = @elapsed
-        tm.Model[i] = AugmentedGaussianProcesses.SparseMultiClass(X,y;Stochastic=tm.Param["Stochastic"],batchsize=tm.Param["BatchSize"],m=tm.Param["M"],
-            kernel=tm.Param["Kernel"],Autotuning=tm.Param["Autotuning"],OptimizeIndPoints=tm.Param["PointOptimization"],
-            AutotuningFrequency=tm.Param["ATFrequency"],AdaptiveLearningRate=tm.Param["ALR"],κ_s=tm.Param["κ_s"],τ_s = tm.Param["τ_s"],ϵ=tm.Param["ϵ"],
-            SmoothingWindow=tm.Param["Window"],verbose=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? zeros(tm.Param["M"]) : [0.0],IndependentGPs=tm.Param["independent"])
+        tm.Model[i] = SVGP(X,y,tm.Param["Kernel"],AugmentedLogisticSoftMaxLikelihood(),tm.Param["Stochastic"] ? StochasticAnalyticInference(tm.Param["BatchSize"],optimizer=tm.Param["Optimizer"]) : AnalyticInference(),tm.Param["M"],
+            Autotuning=tm.Param["Autotuning"],OptimizeInducingPoints=tm.Param["PointOptimization"],
+            atfrequency=tm.Param["ATFrequency"],verbose=tm.Param["Verbose"],IndependentPriors=tm.Param["independent"])
     elseif tm.MethodType == "SVGPMC"
         Z = AugmentedGaussianProcesses.KMeansInducingPoints(X,tm.Param["M"],nMarkov=10)
         # tm.Param["time_init"] = @elapsed A = Ind_KMeans.([y_cmap],[y],[X],tm.Param["M"],0:(tm.Param["nClasses"]-1))
@@ -100,12 +94,12 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
             #Stochastic Sparse SVGPC model
             println("Creating stochastic SVGP")
             # tm.Param["time_init"] += @elapsed
-            tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z,minibatch_size=tm.Param["BatchSize"])
+            tm.Model[i] = gpflow[:models].SVGP(X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow[:likelihoods].MultiClass(tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z,minibatch_size=tm.Param["BatchSize"])
         else
             #Sparse SVGPC model
             println("Creating full batch SVGP")
             # tm.Param["time_init"] += @elapsed
-            tm.Model[i] = gpflow.models[:SVGP](X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods[:MultiClass](tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z)
+            tm.Model[i] = gpflow[:models].SVGP(X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow[:likelihoods].MultiClass(tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z)
         end
     elseif tm.MethodType == "TTGPMC"
         tm.Model[i] = 0
@@ -125,52 +119,52 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
 
     gamma_start = 1e-5;
     if Stochastic
-        gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
+        gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-3;
     else
-        gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-2;
+        gamma_max = 1e-1;    gamma_step = 10^(0.1); gamma_fallback = 1e-3;
     end
     gamma = tf.Variable(gamma_start,dtype=tf.float64);    gamma_incremented = tf.where(tf.less(gamma,gamma_max),gamma*gamma_step,gamma_max)
     op_increment_gamma = tf.assign(gamma,gamma_incremented)
     op_gamma_fallback = tf.assign(gamma,gamma*gamma_fallback);
-    sess = model[:enquire_session]();    sess[:run](tf.variables_initializer([gamma]));
-    var_list = [(model[:q_mu], model[:q_sqrt])]
+    sess = model.enquire_session();    sess.run(tf.variables_initializer([gamma]));
+    var_list = [(model.q_mu, model.q_sqrt)]
     # we don't want adam optimizing these
-    model[:q_mu][:set_trainable](false)
-    model[:q_sqrt][:set_trainable](false)
+    model.q_mu.set_trainable(false)
+    model.q_sqrt.set_trainable(false)
     #
-    ind_points_fixed ? model[:feature][:set_trainable](false) : nothing
-    kernel_fixed ? model[:kern][:set_trainable](false) : nothing
-    op_natgrad = gpflow.training[:NatGradOptimizer](gamma=gamma)[:make_optimize_tensor](model, var_list=var_list)
+    ind_points_fixed ? model.feature.set_trainable(false) : nothing
+    kernel_fixed ? model.kern.set_trainable.(false) : nothing
+    op_natgrad = gpflow[:training].NatGradOptimizer.(gamma=gamma).make_optimize_tensor(model, var_list=var_list)
     op_adam=0
 
     if !(ind_points_fixed && kernel_fixed)
-        op_adam = gpflow.train[:AdamOptimizer]()[:make_optimize_tensor](model)
+        op_adam = gpflow[:train].AdamOptimizer().make_optimize_tensor(model)
     end
 
     for i in 1:(10*iterations)
         try
-            sess[:run](op_natgrad);sess[:run](op_increment_gamma)
+            sess.run(op_natgrad);sess.run(op_increment_gamma)
         catch e
           if isa(e,InterruptException)
                     println("Training interrupted by user at iteration $i");
                     break;
           else
-            g = sess[:run](gamma)
+            g = sess.run(gamma)
             # println("Gamma $g on iteration $i is too big: Falling back to $(g*gamma_fallback)")
-            sess[:run](op_gamma_fallback)
+            sess.run(op_gamma_fallback)
           end
         end
         if op_adam!=0
-            sess[:run](op_adam)
+            sess.run(op_adam)
         end
         if i % 100 == 0
-            println("$i gamma=$(sess[:run](gamma)) ELBO=$(sess[:run](model[:likelihood_tensor]))")
+            println("$i gamma=$(sess.run(gamma)) ELBO=$(sess.run(model.likelihood_tensor))")
         end
         if callback!= nothing
             callback(model,sess,i)
         end
     end
-    model[:anchor](sess)
+    model.anchor(sess)
 end
 
 function trainhybrid(model,iterationsaug,iterations,callback)
@@ -238,12 +232,12 @@ function TrainModel!(tm::TestingModel,i,X,y,X_test,y_test,iterations,iter_points
             if in(iter,iter_points)
                 a = Vector{Any}(undef,9)
                 a[1] = time_ns()
-                y_p = model[:predict_y](X_test)[1]
+                y_p = model.predict_y(X_test)[1]
                 loglike = LogLikelihood(y_test,y_p)
                 a[2] = TestAccuracy(y_test,y_p)
                 a[3] = mean(loglike)
                 a[4] = median(loglike)
-                a[5] = session[:run](model[:likelihood_tensor])
+                a[5] = session.run(model.likelihood_tensor)
                 y_pred = Float64.(zero(y_test))
                 bias = count(unique(y_test).==0)!=0
                 for i in unique(y_test)
@@ -397,7 +391,7 @@ function WriteLastProba(tm::TestingModel,location,X_test,y_test)
         y_p = R"predictMGPC($(tm.Model[1]),$(X_test))$prob"
         y_p = Matrix(rcopy(y_p))
     elseif tm.MethodType == "SVGPMC"
-        y_p = tm.Model[1][:predict_y](X_test)[1]
+        y_p = tm.Model[1].predict_y(X_test)[1]
     end
     y_p = hcat(y_test,y_p)
     if !isdir(fold); mkdir(fold); end;

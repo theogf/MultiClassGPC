@@ -73,8 +73,10 @@ main_param["PointOptimization"] = doPointOptimization
 main_param["independent"] = doIndependent
 #All Parameters
 BCGPMCParam = CGPMCParameters(main_param=main_param)
-SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param)
-HSCGPMCParam = CGPMCParameters(dohybrid=true,Stochastic=doStochastic,Sparse=true,ALR=true,main_param=main_param)
+# SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,optimizer=VanillaGradDescent(η=1.0),main_param=main_param)
+SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,optimizer=InverseDecay(τ=1),main_param=main_param)
+# SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,optimizer=ALRSVI(),main_param=main_param)
+HSCGPMCParam = CGPMCParameters(dohybrid=true,Stochastic=doStochastic,Sparse=true,main_param=main_param)
 SVGPMCParam = SVGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 EPGPMCParam = EPGPMCParameters(Stochastic=doStochastic,main_param=main_param)
 
@@ -138,7 +140,7 @@ for (name,testmodel) in TestModels
     end
     #Reset the kernel
     if testmodel.MethodName == "SVGPMC"
-        testmodel.Param["Kernel"] = gpflow.kernels[:Sum]([gpflow.kernels[:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=true),gpflow.kernels[:White](input_dim=main_param["nFeatures"],variance=main_param["γ"])])
+        testmodel.Param["Kernel"] = gpflow[:kernels][:RBF](main_param["nFeatures"],lengthscales=main_param["Θ"],ARD=main_param["Kernel"] == "ard")
         println("SVGPC : params : l =  $(testmodel.Model[1][:kern][:lengthscales][:value]), var = $(testmodel.Model[1][:kern][:variance][:value])")
     elseif testmodel.MethodName == "SCGPMC"
         println("SCGPMC : params : $([AugmentedGaussianProcesses.KernelModule.getlengthscales(k) for k in testmodel.Model[1].kernel])\n and coeffs :  $([AugmentedGaussianProcesses.KernelModule.getvariance(k) for k in testmodel.Model[1].kernel])")
