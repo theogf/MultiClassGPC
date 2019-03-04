@@ -2,7 +2,6 @@ using RCall
 using DelimitedFiles
 using Plots
 using Formatting
-pyplot()
 R"library(CalibratR)"
 
 dpi=600

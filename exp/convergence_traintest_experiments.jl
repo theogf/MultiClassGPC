@@ -74,7 +74,7 @@ main_param["independent"] = doIndependent
 #All Parameters
 BCGPMCParam = CGPMCParameters(main_param=main_param)
 # SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,optimizer=VanillaGradDescent(η=1.0),main_param=main_param)
-SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,optimizer=InverseDecay(τ=1),main_param=main_param)
+SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,optimizer=InverseDecay(τ=0),main_param=main_param)
 # SCGPMCParam = CGPMCParameters(Stochastic=doStochastic,Sparse=true,optimizer=ALRSVI(),main_param=main_param)
 HSCGPMCParam = CGPMCParameters(dohybrid=true,Stochastic=doStochastic,Sparse=true,main_param=main_param)
 SVGPMCParam = SVGPMCParameters(Stochastic=doStochastic,main_param=main_param)
