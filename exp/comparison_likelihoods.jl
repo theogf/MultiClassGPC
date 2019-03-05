@@ -3,6 +3,7 @@ using Distributions
 using StatsBase, Distances
 using Random: seed!
 using PyCall
+using RCall
 using ValueHistories
 using Plots
 using LinearAlgebra
@@ -17,6 +18,7 @@ seed!(42)
 @pyimport sklearn.model_selection as sp
 @pyimport gpflow
 @pyimport tensorflow as tf
+R"source('../src/sepMGPC_batch.R')"
 function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel_fixed =false, callback=nothing , Stochastic = true)
     # we'll make use of this later when we use a XiTransform
 
@@ -118,7 +120,7 @@ dpi=600
     classify(X_clean,y);classify(X,y_noise);
     bayes_error = count(y.!=y_noise)/length(y)
 ##
-    σ = 0.6; N_class = N_dim+1
+    σ = 0.7; N_class = N_dim+1
     centers = zeros(N_class,N_dim)
     for i in 1:N_dim
         centers[i,i] = 1
@@ -159,6 +161,24 @@ function callbackplot(model,iter)
     return p1
 end
 
+function callbackplot3D(model,iter)
+    global y_fgrid = predict_y(model,X_grid)
+    global py_fgrid = proba_y(model,X_grid)
+    global μ_fgrid = predict_f(model,X_grid,covf=false)
+    global cols = reshape([RGB(permutedims(Vector(py_fgrid[i,:]))[collect(values(sort(model.likelihood.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    global col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
+    global p3d= surface(x_grid,x_grid,(model.nLatent+1)*ones(N_grid),N_grid),fill_z=cols,colorbar=false,grid=:hide,framestyle=:none,yflip=false,dpi=dpi)
+    global p3d=plot!(p3d,X[:,1],X[:,2],zeros(size(X,1)),color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.3)
+    for i in 1:model.nLatent
+        surface!(p3d,collect(x_grid),collect(x_grid),i*ones(N_grid,N_grid),colorbar=false,fill_z=reshape(μ_fgrid[i],N_grid,N_grid))
+    end
+    lims = (xlims(p1),ylims(p1))
+    xlims!(p3d,lims[1]);ylims!(p3d,lims[2])
+    # pfinal= contour3d!(pfinal,x_grid,x_grid,(model.nLatent+1)*ones(length(x_grid)),reshape(y_fgrid,N_grid,N_grid),clims=(0,100),t=:contour,colorbar=false,color=:gray,levels=10)
+    # p1=plot!(p1,model.Z[1][:,1],model.Z[1][:,2],color=:black,t=:scatter,lab="")
+    # frame(anim,p3d)
+    return p3d
+end
 ##
 
 function gpflowcallbackplot(model,iter)
@@ -173,6 +193,22 @@ function gpflowcallbackplot(model,iter)
     p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(-0,100),t=:contour,colorbar=false,color=:gray,levels=10)
     xlims!(p1,lims[1]);ylims!(p1,lims[2])
     frame(anim,p1)
+    display(p1)
+    return p1
+end
+
+function epcallbackplot(model,iter)
+    global py_fgrid = Matrix(rcopy(R"predictMGPC($(model),$(X_grid))$prob"))
+    y_fgrid = mapslices(argmax,py_fgrid,dims=2)
+    global cols = reshape([RGB(py_fgrid[i,:]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
+    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,grid=:hide,framestyle=:none,yflip=false,dpi=dpi)
+    lims = (xlims(p1),ylims(p1))
+    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.3)
+    # p1=plot!(p1,model[:feature][:Z][:value][:,1],model[:feature][:Z][:value][:,2],color=:black,t=:scatter,lab="")
+    p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(-0,100),t=:contour,colorbar=false,color=:gray,levels=10)
+    xlims!(p1,lims[1]);ylims!(p1,lims[2])
+    # frame(anim,p1)
     display(p1)
     return p1
 end
@@ -345,6 +381,27 @@ ECE_rm, MCE_rm, cal_rm, calh_rm = calibration(y_test,py_rm,nBins=nBins,plothist=
 savefig(cal_rm,"../plotslikelihood/cal_line_rm_σ$σ.pdf")
 savefig(calh_rm,"../plotslikelihood/cal_hist_rm_σ$σ.pdf")
 
+## Multiclass-probit
+elbos = MVHistory()
+metrics = MVHistory()
+kerparams = MVHistory()
+#Xbar_ini=$(Z[1]),
+t_ep = @elapsed epmodel = R"epMGPCInternal($X, $(y),$(size(Z[1],1)),  X_test = $X_test, Y_test= $(y_test),  max_iters=2000, indpoints= FALSE, autotuning=TRUE)"
+
+global py_ep = Matrix(rcopy(R"predictMGPC($(epmodel),$(X_test))$prob"))
+AUC_epm = 0#multiclassAUC(y_test,py_ep)
+println("Expected model accuracy is $(gpflowacc(y_test,py_ep)), loglike : $(gpflowloglike(y_test,py_ep)) and AUC $(AUC_ep) in $t_ep s")
+ep_map = epcallbackplot(epmodel,2)
+savefig(ep_map,"../plotslikelihood/contour_ep_σ$σ.pdf")
+ep_map = title!(ep_map,"Probit")
+ep_metrics = deepcopy(metrics)
+ep_kerparams = deepcopy(kerparams)
+ep_elbo = deepcopy(elbos)
+AUC_ep = 0
+ECE_ep, MCE_ep, cal_ep, calh_ep = calibration(y_test,py_ep,nBins=nBins,plothist=true,plotline=true,gpflow=true,meanonly=true,threshold=2)
+savefig(cal_ep,"../plotslikelihood/cal_line_ep_σ$σ.pdf")
+savefig(calh_ep,"../plotslikelihood/cal_hist_ep_σ$σ.pdf")
+
 ## Plotting part
 pmet_alsm = plot(alsm_metrics,title="Aug. LogSoftMax",markersize=0.0,linewidth=2.0)
 pmet_lsm = hline!(pmet_alsm,[bayes_error],lab="",line=(2.0,:red))
@@ -392,4 +449,4 @@ savefig(pmetfin,"resultslikelihood/metricsfinal_noise$(σ).png")
 savefig(pmap,"resultslikelihood/plot_noise$(σ).png")
 savefig(pelbo,"resultslikelihood/elbo_noise$(σ).png")
 savefig(pker,"resultslikelihood/kernel_params_noise$(σ).png")
-writedlm("resultslikelihood/results_$σ.txt",hcat([acc(y_test,y_alsm),loglike(y_test,py_alsm),mean(ECE_alsm),mean(MCE_alsm)],[acc(y_test,y_lsm),loglike(y_test,py_lsm),mean(ECE_lsm),mean(MCE_lsm)],[acc(y_test,y_sm),loglike(y_test,py_sm),mean(ECE_sm),mean(MCE_sm)],[gpflowacc(y_test,py_rm),gpflowloglike(y_test,py_rm),mean(ECE_rm),mean(MCE_rm)]))
+writedlm("resultslikelihood/results_$σ.txt",hcat([acc(y_test,y_alsm),loglike(y_test,py_alsm),mean(ECE_alsm),mean(MCE_alsm)],[acc(y_test,y_lsm),loglike(y_test,py_lsm),mean(ECE_lsm),mean(MCE_lsm)],[acc(y_test,y_sm),loglike(y_test,py_sm),mean(ECE_sm),mean(MCE_sm)],[gpflowacc(y_test,py_rm),gpflowloglike(y_test,py_rm),mean(ECE_rm),mean(MCE_rm)],[gpflowacc(y_test,py_ep),gpflowloglike(y_test,py_ep),mean(ECE_ep),mean(MCE_ep)]))

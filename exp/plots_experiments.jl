@@ -149,10 +149,10 @@ function InducingPointsComparison(metric,MPoints=[8,15,38,76,152,381];step=1)
     savefig("../plots/$(dataset)InducingPointsPlot.png")
 end
 
-function PlotAll()
+function PlotAll(;shared=false)
     file_list = readdlm("files_finished")
     for file in file_list
-        PlotMetricvsTime(file,"All",time=true,writing=true,corrections=false)
+        PlotMetricvsTime(file,"Final",time=true,writing=true,corrections=false,shared=shared)
     end
 end
 
@@ -169,14 +169,12 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     global Results = Dict{String,Any}();
     println("Working on dataset $dataset")
     # colors=Dict("GPC"=>"b","SPGGPC"=>"r","LogReg"=>"y")
-    time_line = [1:5:9;10:5:10;100:50:999;1000:1000:9999;10000:10000:50000]
-    time_line_EP = [1:1:99;100:10:999;1000:100:9999;10000:1000:40000]
+    time_line = [1:1:9;1e1:5*1e0:1e2-1;1e2:5*1e1:1e3-1;1e3:5*1e2:1e4-1;1e4:5*1e3:1e5-1;1e5:5*1e4:1e6]
     # Dict("SVGPMC"=>[1:1:99;100:10:999;1000:100:9999;10000:1000:20000],"SCGPMC"=>[1:1:99;100:10:999;1000:100:20000])
     p = Dict{String,Any}()
 
     # FinalMetrics = ["MeanL","AUC"]
     FinalMetrics = ["MeanL","Accuracy"]
-
 
     # NC =  Dict("LogReg"=>"Linear Model","GPC"=>"SVGPMC","SPGGPC"=>"X-GPC","Accuracy"=>"Avg. Test Error","MedianL"=>"Avg. Median Neg. Test Log likelihood")
     Results["SVGPMC"] = readdlm(loc[dataset]["SVGPMC"]*dataset*"Dataset/Results_SVGPMC.txt")
@@ -191,6 +189,16 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     # end
     # Results["TTGPC"] = readdlm(loc[dataset]["TTGPC"]*dataset*"Dataset/Results_TTGPC.txt")
     # Results["LogReg"] = readdlm(loc[dataset]["LogReg"]*dataset*"Dataset/Results_LogReg.txt")
+    acc = Results["SCGPMC"][:,metrics["Accuracy"]]
+    meanl = Results["SCGPMC"][:,metrics["MeanL"]]
+    maxacc = findmax(acc)
+    acc = vcat(acc[1:maxacc[2]-1],max.(acc[maxacc[2]:end],maxacc[1]))
+    maxmeanl = findmax(meanl)
+    meanl = vcat(meanl[1:maxmeanl[2]-1],max.(meanl[maxmeanl[2]:end],maxmeanl[1]))
+    Results["SCGPMC"][:,metrics["Accuracy"]]= acc
+    Results["SCGPMC"][:,metrics["MeanL"]] = meanl
+
+
 
     maxx = maximum((x->x[end,1]).(values(Results)))#,Results["TTGPC"][end,1])
     minx = minimum((x->x[1,1]).(values(Results)))#,Results["TTGPC"][1,1])
@@ -236,7 +244,7 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     if time
         time_line = Dict(key=>Results[key][:,1] for key in keys(Results))
     else
-        time_line = Dict(key=>timeline[1:length(Results[key][:,1])] for key in keys(Results))
+        time_line = Dict(key=>time_line[1:length(Results[key][:,1])] for key in keys(Results))
     end
     if metric == "Final"
         iter=1
@@ -307,7 +315,7 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     tight_layout()
     subplots_adjust(top=0.88)
     if writing
-        savefig("../plots/"*(metric=="Final" ? "Final" : "")*"Convergence_vs_"*(time ? "time" : "iterations")*"_on_"*dataset*".png")
+        savefig("../plots/"*(metric=="Final" ? "Final" : "")*"Convergence_vs_"*(time ? "time" : "iterations")*"_on_"*dataset*(shared ? "_shared" : "")*".png")
         close()
     end
     return f
@@ -330,8 +338,8 @@ DatasetNameCorrection = Dict("iris"=>"Iris","wine"=>"Wine","glass"=>"Glass","veh
 function Table()
     dataset_list = readdlm("file_list_finished_table")
     Methods = ["SCGPMC","SVGPMC","EPGPMC"]
-    MetricNames = Dict("Error"=>1,"NLL"=>3)
-    MetricsOrder = ["Error","NLL"]
+    MetricNames = Dict("Error"=>2,"NLL"=>3,"Time"=>1)
+    MetricsOrder = ["Time","Error","NLL"]
     full_table = Array{String,1}()
     push!(full_table,"\\begin{table}[h!]\\centering")
     push!(full_table,"\\begin{adjustbox}{max width=\\columnwidth}")
@@ -345,10 +353,12 @@ function Table()
         for metric in MetricsOrder
             new_line =""
             # new_line = new_line*"& "
-            if metric == "Error"
+            if metric == "Time"
                 new_line = new_line*"$(DatasetNameCorrection[dataset]) & \$ C=$(sizes[dataset][3])\$"
+            elseif metric == "Error"
+                    new_line = new_line*"& \$ N=$(sizes[dataset][1])\$"
             elseif  metric == "NLL"
-                new_line = new_line*"\$ N=$(sizes[dataset][1])\$ &\$ D=$(sizes[dataset][2]) \$"
+                new_line = new_line*" &\$ D=$(sizes[dataset][2]) \$"
             end
             # if metric == "Error"
             #     new_line = new_line*"$(DatasetNameCorrection[dataset])"
@@ -369,9 +379,9 @@ function Table()
             for m in Methods
                 mean_v = format(Res[m][MetricNames[metric]],precision=2); std_v = format(Res[m][MetricNames[metric]+1],precision=2) ;
                 if m == best_m
-                    new_line = new_line*" & \$ \\mathbf{ $mean_v \\pm $std_v } \$"
+                    new_line = new_line*" & \$ \\mathbf{ $mean_v } \$"
                 else
-                    new_line = new_line*" & \$ $mean_v \\pm $std_v \$"
+                    new_line = new_line*" & \$ $mean_v \$"
                 end
             end
             new_line = new_line*"\\\\"
@@ -410,29 +420,17 @@ function ConvergenceDetector(dataset;time=true)
     for m in Methods
         println(m)
         Res =
-        readdlm(loc[dataset][m]*dataset*"Dataset/Results_"*m*".txt")
+        readdlm(loc[dataset][m]*dataset*"Dataset/Results_"*m*(m=="SCGPMC" ? "_shared" : "")*".txt")
         t = Res[:,1]
-        if m == "SVGPMC"
-            t -= Float64(readdlm("../cluster/time_correction/$(dataset)SVGPMC.txt")[1])
-        elseif m == "SCGPMC" && dataset == "mnist"
-            t -= Float64(readdlm("../cluster/time_correction/$(dataset)SCGPMC.txt")[1])
-        end
-        i_budget = findfirst(t.>b)
-        if i_budget === nothing
-            i_budget = length(t)
-        end
-        ConvResults[m] = [DataConversion(mean([Res[i_budget,3],Res[i_budget-1,3]]),"Accuracy"),
-        mean([Res[i_budget,4],Res[i_budget-1,4]]),
-        DataConversion(mean([Res[i_budget,5],Res[i_budget-1,5]]),"MeanL"),
-        mean([Res[i_budget,6],Res[i_budget-1,6]])]
+        i_budget = Handpicked[dataset][m]
+        ConvResults[m] = [t,DataConversion(Res[i_budget,3],"Accuracy"),
+        DataConversion(Res[i_budget,5],"MeanL")]
     end
     return ConvResults
 end
 
-Handpicked = Dict("aXa"=>Dict("EPGPMC"=>197), "Bank_marketing"=>Dict(), "Click_Prediction"=>Dict(),
-                    "Cod-rna"=>Dict(),"Covtype"=>Dict(),"Diabetis"=>Dict("SCGPMC"=>82,"SVGPMC"=>236),"Electricity"=>Dict(),
-                    "German"=>Dict("SCGPMC"=>86,"SVGPMC"=>282),"HIGGS"=>Dict(),"Ijcnn1"=>Dict(),"Mnist"=>Dict(),"Shuttle"=>Dict(),
-                    "SUSY"=>Dict(),"wXa"=>Dict())
+Handpicked = Dict("covtype"=>Dict("SCGPMC"=>36,"SVGPMC"=>78,"EPGPMC"=>63), "combined"=>Dict("SCGPMC"=>22,"SVGPMC"=>82,"EPGPMC"=>60), "fashion-mnist"=>Dict("SCGPMC"=>33,"SVGPMC"=>63,"EPGPMC"=>60),
+                    "mnist"=>Dict("SCGPMC"=>33,"SVGPMC"=>37,"EPGPMC"=>57),"kmnist"=>Dict("SCGPMC"=>34,"SVGPMC"=>68,"EPGPMC"=>58),"shuttle"=>Dict("SCGPMC"=>54,"SVGPMC"=>52,"EPGPMC"=>57))
 
 
 function PlotAutotuning(dataset,method;step=1)

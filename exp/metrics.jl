@@ -71,7 +71,7 @@ function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,g
         # colors_grad = cgrad(g) |> C
         global percent = text.(string.(format.(tot_bin/(sum(tot_bin))*100,width=1,precision=1,suffix="%")),:bottom,12)
         push!(hists,bar(mean_bins[tot_bin.>threshold],(sum(accs[k][tot_bin.>threshold] for k in 1:K)./sum(nP[k].!=0 for k in 1:K)[tot_bin.>threshold]) ,lab="",xlims=(0,1),ylims=(0,1),bar_width=0.1,xlabel="Confidence",ylabel="Accuracy",dpi=dpi))
-        annotate!(hists[1],collect(zip(mean_bins[tot_bin.>threshold],sum(accs[k][tot_bin.>threshold] for k in 1:K)./sum(nP[k].!=0 for k in 1:K)[tot_bin.>threshold],percent)))
+        # annotate!(hists[1],collect(zip(mean_bins[tot_bin.>threshold],sum(accs[k][tot_bin.>threshold] for k in 1:K)./sum(nP[k].!=0 for k in 1:K)[tot_bin.>threshold],percent)))
         # display(plot(hists...))
     end
     if plothist && !plotline
@@ -108,53 +108,85 @@ function calibration_R(y_test,y_pred;nBins::Int=15,gpflow=false)
 end
 
 function plot_likelihood_diff()
-    σs = collect(0.1:0.1:0.6)
+    σs = collect(0.1:0.1:0.7)
     nσ = length(σs)
+    metrics = ["acc","ll"]
+    labels = Dict("acc"=>"Test Error","ll"=>"Neg. Log Likelihood","ece"=>"Expected Calibration Error")
     defdict = Dict("acc"=>Float64[],"ll"=>Float64[],"ece"=>Float64[])
-    global res = [("alsm",deepcopy(defdict)),("lsm",deepcopy(defdict)),("sm",deepcopy(defdict)),("rm",deepcopy(defdict))]
+    global res = [("alsm",deepcopy(defdict)),("lsm",deepcopy(defdict)),("sm",deepcopy(defdict)),("rm",deepcopy(defdict)),("ep",deepcopy(defdict))]
     for σ in σs
         global vals = readdlm("resultslikelihood/results_$σ.txt")
         for i in eachindex(res)
-            # @show obj
-            push!(res[i][2]["acc"],vals[1,i])
-            push!(res[i][2]["ll"],vals[2,i])
+            @show σ i
+            push!(res[i][2]["acc"],1.0.-vals[1,i])
+            push!(res[i][2]["ll"],-vals[2,i])
             push!(res[i][2]["ece"],vals[3,i])
         end
     end
     ps = []
-    allacclims = []
-    alllllims = []
+    alllims1 = []
+    alllims2 = []
     linewidth=3.0
     for (i,obj) in enumerate(res)
-        p = plot(σs,1.0.-obj[2]["acc"],xlabel="σ²",ylabel="Test Error",lab="",linewidth=linewidth,tickfontcolor=:blue,color=:blue)
-        push!(allacclims,ylims(p))
+        p = plot(σs,obj[2][metrics[1]],xlabel="σ²",ylabel=labels[metrics[1]],lab="",linewidth=linewidth,tickfontcolor=:blue,color=:blue,title=obj[1])
+        push!(alllims1,ylims(p))
         ptwin = twinx(p)
-        plot!(ptwin,σs,-obj[2]["ll"],xlabel="σ²",ylabel="Neg. Log Likelihood",lab="",linewidth=linewidth,tickfontcolor=:red,color=:red)
-        push!(alllllims,ylims(ptwin))
+        plot!(ptwin,σs,obj[2][metrics[2]],xlabel="σ²",ylabel=labels[metrics[2]],lab="",linewidth=linewidth,tickfontcolor=:red,color=:red)
+        push!(alllims2,ylims(ptwin))
         push!(ps,p)
     end
-    minlimacc = Inf; maxlimacc = -Inf
-    for (x,y) in allacclims
-        minlimacc = min(x,minlimacc); maxlimacc = max(y,maxlimacc)
+    minlim1 = Inf; maxlim1 = -Inf
+    for (x,y) in alllims1
+        minlim1 = min(x,minlim1); maxlim1 = max(y,maxlim1)
     end
-    limacc= (minlimacc,maxlimacc)
-    minlimll = Inf; maxlimll = -Inf
-    for (x,y) in alllllims
-        minlimll = min(x,minlimll); maxlimll = max(y,maxlimll)
+    global llim1= (minlim1,maxlim1)
+    minlim2 = Inf; maxlim2 = -Inf
+    for (x,y) in alllims2
+        minlim2 = min(x,minlim2); maxlim2 = max(y,maxlim2)
     end
-    limll= (minlimll,maxlimll)
+    global lim2= (minlim2,maxlim2)
     ps=[]
     for (i,obj) in enumerate(res)
-        p = plot(σs,1.0.-obj[2]["acc"],xlabel="σ²",ylabel="Test Error",lab="",linewidth=linewidth,guidefontcolor=:blue,ytickfontcolor=:blue,color=:blue,ylims=limacc)
-        push!(allacclims,ylims(p))
+        p = plot(σs,obj[2][metrics[1]],xlabel="σ²",ylabel=labels[metrics[1]],lab="",linewidth=linewidth,guidefontcolor=:blue,ytickfontcolor=:blue,color=:blue,ylims=lim1)
         ptwin = twinx(p)
-        plot!(ptwin,σs,-obj[2]["ll"],xlabel="σ²",ylabel="Neg. Log Likelihood",lab="",linewidth=linewidth,yguidefontcolor=:red,ytickfontcolor=:red,color=:red,ylims=limll)
-        push!(alllllims,ylims(ptwin))
+        plot!(ptwin,σs,obj[2][metrics[2]],xlabel="σ²",ylabel=labels[metrics[2]],lab="",linewidth=linewidth,yguidefontcolor=:red,ytickfontcolor=:red,color=:red,ylims=lim2)
         savefig(p,"../plotslikelihood/sigma_comparison_"*obj[1]*".pdf")
+        title!(p,obj[1])
         push!(ps,p)
     end
 
     plot(ps...,link=:all,layout=(1,length(res)))
+end
+
+function plot_likelihood_diff2()
+    σs = collect(0.1:0.1:0.7)
+    nσ = length(σs)
+    metrics = ["acc","ll","ece"]
+    global labels = Dict("acc"=>"Test Error","ll"=>"Neg. Log Likelihood","ece"=>"Expected Calibration Error","sm"=>"Softmax","lsm"=>"Logistic Softmax","rm"=>"Robust-max","ep"=>"Multinomial probit")
+    defdict = Dict("acc"=>Float64[],"ll"=>Float64[],"ece"=>Float64[])
+    global res = [("lsm",deepcopy(defdict)),("sm",deepcopy(defdict)),("rm",deepcopy(defdict)),("ep",deepcopy(defdict))]
+    for σ in σs
+        global vals = readdlm("resultslikelihood/results_$σ.txt")
+        for i in 1:length(res)
+            @show σ i
+            push!(res[i][2]["acc"],1.0.-vals[1,i+1])
+            push!(res[i][2]["ll"],-vals[2,i+1])
+            push!(res[i][2]["ece"],vals[3,i+1])
+        end
+    end
+    ps = []
+    for m in metrics
+        p = plot()
+        for i in eachindex(res)
+            plot!(p,σs,res[i][2][m],xlabel="σ²",ylabel=labels[m],lab="",linewidth=2.0,color=i,xlims=(0.1,maximum(σs)))
+        end
+        savefig(p,"../plotslikelihood/"*m*"comparison.pdf")
+        push!(ps,p)
+    end
+    p = plot(ones(1,length(res)),ones(1,length(res)),linewidth=2.0,label=hcat(get.([labels],getindex.(res,[1]),nothing)...), grid=false, showaxis=false,legend=:left,legendfontsize=20.0,color=collect(1:length(res))')
+    savefig(p,"../plotslikelihood/legendcomparison.pdf")
+    push!(ps,p)
+    plot(ps...,link=:all,layout=(1,length(metrics)+1))
 end
 
 function calibration_plots(dataset::String,write=false)
