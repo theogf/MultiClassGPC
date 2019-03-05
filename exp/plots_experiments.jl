@@ -164,7 +164,7 @@ function SmoothIt(x;window=3)
     return smoothed
 end
 
-function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=false,corrections=false)
+function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=false,corrections=false,shared=false)
     cd(@__DIR__)
     global Results = Dict{String,Any}();
     println("Working on dataset $dataset")
@@ -180,7 +180,7 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
 
     # NC =  Dict("LogReg"=>"Linear Model","GPC"=>"SVGPMC","SPGGPC"=>"X-GPC","Accuracy"=>"Avg. Test Error","MedianL"=>"Avg. Median Neg. Test Log likelihood")
     Results["SVGPMC"] = readdlm(loc[dataset]["SVGPMC"]*dataset*"Dataset/Results_SVGPMC.txt")
-    Results["SCGPMC"] = readdlm(loc[dataset]["SCGPMC"]*dataset*"Dataset/Results_SCGPMC.txt")
+    Results["SCGPMC"] = readdlm(loc[dataset]["SCGPMC"]*dataset*"Dataset/Results_SCGPMC"*(shared ? "_shared" : "")*".txt")
     # Results["HSCGPMC"] = readdlm(loc[dataset]["HSCGPMC"]*dataset*"Dataset/Results_HSCGPMC.txt")
     Results["EPGPMC"] = readdlm(loc[dataset]["EPGPMC"]*dataset*"Dataset/Results_EPGPMC.txt")
     # if !in(dataset,["iris","glass","wine"])

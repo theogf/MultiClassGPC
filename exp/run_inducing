@@ -9,6 +9,7 @@ for m in "${ms[@]}"
      screen -S "${prefix}${1}${m}" -d -m
      sleep 0.1
      screen -r "${prefix}${1}${m}" -p 0 -X stuff "export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 ^M"
-     screen -r "${prefix}${1}${m}" -p 0 -X stuff "~/Julia/bin/julia -p 1 paper_experiments.jl ${1} --XGP -A -I 1000 -M $m ^M"
+     screen -r "${prefix}${1}${m}" -p 0 -X stuff "~/Julia/bin/julia -p 1 paper_experiments.jl ${1} --SCGP -A -I 2000 -M $m ^M"
+     screen -r "${prefix}${1}${m}" -p 0 -X stuff "~/Julia/bin/julia -p 1 paper_experiments.jl ${1} --SCGP -A -I 2000 -M $m --independent ^M"
      echo "Created screen ${prefix}${1}${m} and ran experiment"
   done

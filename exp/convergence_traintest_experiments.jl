@@ -148,7 +148,7 @@ for (name,testmodel) in TestModels
     n = size(testmodel.Results["Time"])
     testmodel.Results["Processed"]= [testmodel.Results["Time"] zeros(n) testmodel.Results["Accuracy"] zeros(n) testmodel.Results["MeanL"] zeros(n) testmodel.Results["MedianL"] zeros(n) testmodel.Results["ELBO"] zeros(n) testmodel.Results["AUC"] zeros(n) testmodel.Results["ECE"] zeros(n) testmodel.Results["MCE"] zeros(n)]
     if doWrite
-        top_fold = "results";
+        top_fold = "results_M$(main_param["M"])";
         if !isdir(top_fold); mkdir(top_fold); end;
         WriteLastProba(testmodel,top_fold,X_test,y_test)
         WriteResults(testmodel,top_fold,writing_order,false) #Write the results in an adapted format into a folder
