@@ -5,7 +5,7 @@ using Formatting
 R"library(CalibratR)"
 
 dpi=600
-function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,gpflow=false,meanonly=false,threshold=0,title="")
+function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,plotconf=false,gpflow=false,meanonly=false,threshold=0,title="")
     edges = collect(range(0.0,1.0,length=nBins+1))
     mean_bins = 0.5*(edges[2:end]+edges[1:end-1])
     ntest = length(y_test)
@@ -50,36 +50,42 @@ function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,g
     if plotline
         if !meanonly
             for k in 1:K
-                push!(ps,plot!(plot(conf[k][nP[k].!=0],accs[k][nP[k].!=0],title="y=$(k-bias)",lab="",color=K==3 ? col_doc[k] : k,marker=:circle,markersize=msize*nP[k][nP[k].!=0]/ntest),x->x,0:1,color=:black,lab="",xlabel="Confidence",ylabel="Accuracy",xlims=(-0.1,1.1),ylims=(0,1)))
+                push!(ps,Plots.plot!(Plots.plot(conf[k][nP[k].!=0],accs[k][nP[k].!=0],title="y=$(k-bias)",lab="",color=K==3 ? col_doc[k] : k,marker=:circle,markersize=msize*nP[k][nP[k].!=0]/ntest),x->x,0:1,color=:black,lab="",xlabel="Confidence",ylabel="Accuracy",xlims=(-0.1,1.1),ylims=(0,1)))
             end
         end
         msizechoice = msize*tot_bin[tot_bin.>threshold]/(K*ntest)
         # push!(ps,plot!(plot((sum(nP[k].*conf[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],(sum(nP[k].*accs[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],lab="",xlabel="Confidence",ylabel="Accuracy",color=:black,marker=:circle,series_annotations=percent),x->x,0:1,color=:black,lab="",xlims=(-0.05,1.05),ylims=(0,1),dpi=dpi))
-        push!(ps,plot!(plot((sum(nP[k].*conf[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],(sum(nP[k].*accs[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],lab="",xlabel="Confidence",ylabel="Accuracy",color=:black,marker=:circle,markersize=msizechoice),x->x,0:1,color=:black,lab="",xlims=(-0.05,1.05),ylims=(0,1),dpi=dpi))
+        push!(ps,Plots.plot!(Plots.plot((sum(nP[k].*conf[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],(sum(nP[k].*accs[k] for k in 1:K)./sum(nP[k] for k in 1:K))[tot_bin.>threshold],lab="",xlabel="Confidence",ylabel="Accuracy",color=:black,marker=:circle,markersize=msizechoice),x->x,0:1,color=:black,lab="",xlims=(-0.05,1.05),ylims=(0,1),dpi=dpi))
         # display(plot(ps...))
     end
     hists = []
     if plothist
         if !meanonly
             for k in 1:K
-                push!(hists,bar(mean_bins,accs[k],title="y=$k",lab="",color=K<=3 ? col_doc[k] : k,xlims=(0,1),ylims=(0,1),xlabel="Confidence",ylabel="Accuracy"))
+                push!(hists,Plots.bar(mean_bins,accs[k],title="y=$k",lab="",color=K<=3 ? col_doc[k] : k,xlims=(0,1),ylims=(0,1),xlabel="Confidence",ylabel="Accuracy"))
             end
         end
         # g=:speed
         # color_grad = min.(tot_bin[tot_bin.>threshold]/(sum(tot_bin)),maximum(tot_bin[2:end]))
         # C(g) = RGB[g[z] for z=color_grad]
         # colors_grad = cgrad(g) |> C
-        global percent = text.(string.(format.(tot_bin/(sum(tot_bin))*100,width=1,precision=1,suffix="%")),:bottom,12)
-        push!(hists,bar(mean_bins[tot_bin.>threshold],(sum(accs[k][tot_bin.>threshold] for k in 1:K)./sum(nP[k].!=0 for k in 1:K)[tot_bin.>threshold]) ,lab="",xlims=(0,1),ylims=(0,1),bar_width=0.1,xlabel="Confidence",ylabel="Accuracy",dpi=dpi))
+        global percent = Plots.text.(string.(format.(tot_bin/(sum(tot_bin))*100,width=1,precision=1,suffix="%")),:bottom,12)
+        push!(hists,Plots.bar(mean_bins[tot_bin.>threshold],(sum(accs[k][tot_bin.>threshold] for k in 1:K)./sum(nP[k].!=0 for k in 1:K)[tot_bin.>threshold]) ,lab="",xlims=(0,1),ylims=(0,1),bar_width=0.1,xlabel="Confidence",ylabel="Accuracy",dpi=dpi))
         # annotate!(hists[1],collect(zip(mean_bins[tot_bin.>threshold],sum(accs[k][tot_bin.>threshold] for k in 1:K)./sum(nP[k].!=0 for k in 1:K)[tot_bin.>threshold],percent)))
         # display(plot(hists...))
     end
+    pconf = []
+    if plotconf
+        pconf = Plots.bar(mean_bins,tot_bin./sum(tot_bin),lab="",ylabel="% of samples",xlabel("Confidence"),bar_width=0.1,ylims=(0.0,1.0),xlims=(0.0,1.0))
+    end
     if plothist && !plotline
-        return ECE,MCE,plot(hists...,title=title)
-    elseif plothist && plotline
-        return ECE,MCE,plot(ps...,title=title),plot(hists...,title=title)
+        return ECE,MCE,Plots.plot(hists...,title=title)
+    elseif plothist && plotline && !plotconf
+        return ECE,MCE,Plots.plot(ps...,title=title),Plots.plot(hists...,title=title)
+    elseif plothist && plotline && plotconf
+        return ECE,MCE,Plots.plot(ps...,title=title),Plots.plot(hists...,title=title),pconf
     elseif !plothist && plotline
-        return ECE,MCE,plot(ps...,title=title)
+        return ECE,MCE,Plots.plot(ps...,title=title)
     else
         return ECE,MCE
     end

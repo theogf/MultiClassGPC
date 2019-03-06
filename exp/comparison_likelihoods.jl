@@ -6,9 +6,11 @@ using PyCall
 using RCall
 using ValueHistories
 using Plots
+using Makie
 using LinearAlgebra
 using GradDescent
 using DelimitedFiles
+using LaTeXStrings
 cd(@__DIR__)
 include("metrics.jl")
 pyplot()
@@ -120,7 +122,7 @@ dpi=600
     classify(X_clean,y);classify(X,y_noise);
     bayes_error = count(y.!=y_noise)/length(y)
 ##
-    σ = 0.7; N_class = N_dim+1
+    σ = 0.5; N_class = N_dim+1
     centers = zeros(N_class,N_dim)
     for i in 1:N_dim
         centers[i,i] = 1
@@ -151,14 +153,46 @@ function callbackplot(model,iter)
     global py_fgrid = proba_y(model,X_grid)
     global cols = reshape([RGB(permutedims(Vector(py_fgrid[i,:]))[collect(values(sort(model.likelihood.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
-    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,grid=:hide,framestyle=:none,yflip=false,dpi=dpi)
+    global p1= Plots.plot(x_grid,x_grid,cols,t=:contour,colorbar=false,grid=:hide,framestyle=:none,yflip=false,dpi=dpi)
     lims = (xlims(p1),ylims(p1))
-    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.3)
+    p1=Plots.plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.3)
     # p1=plot!(p1,model.Z[1][:,1],model.Z[1][:,2],color=:black,t=:scatter,lab="")
-    p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(0,100),t=:contour,colorbar=false,color=:gray,levels=10)
+    p1= Plots.plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(0,100),t=:contour,colorbar=false,color=:gray,levels=10)
     xlims!(p1,lims[1]);ylims!(p1,lims[2])
     frame(anim,p1)
     return p1
+end
+
+function callbackmakie(model)
+    global y_fgrid = predict_y(model,X_grid)
+    global py_fgrid = proba_y(model,X_grid)
+    global μ_fgrid = predict_f(model,X_grid,covf=false)
+    global cols = reshape([parse.(Colorant,RGB(permutedims(Vector(py_fgrid[i,:]))[collect(values(sort(model.likelihood.ind_mapping)))]...)) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    global col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
+    global scale = 1.0
+    global scene = Scene()
+    Makie.scatter!(scene,[1,0,0],[0,1,0],[0,0,1],color=RGBA(1,1,1,0)) #For 3D plots
+    Makie.scatter!(scene,X[:,1],X[:,2],scale*(model.nLatent+1)*ones(size(X,1)),color=col_doc[y],lab="",markerstrokewidth=0.1,transparency=true)
+    Makie.surface!(scene,collect(x_grid),collect(x_grid),zeros(N_grid,N_grid),grid=:hide,color=cols',lab="")#,size=(600,2000))#,colorbar=false,framestyle=:none,,dpi=dpi)
+    tsize = 0.8
+    grads = [cgrad([RGBA(1,1,1,0),RGBA(1,0,0,1)]),cgrad([RGBA(1,1,1,0),RGBA(0,1,0,1)]),cgrad([RGBA(1,1,1,0),RGBA(0,0,1,1)])]
+    Makie.text!(scene,"p(y|D)",position=(xmin,xmax,0.0),textsize=tsize,rotation=(Vec3f0(1, 1, 1), pi*2/3))
+    sub = ["₃","₂","₁"]
+    for i in 1:model.nLatent
+        μ = μ_fgrid[collect(values(sort(model.likelihood.ind_mapping)))][i]
+        μ = (μ.-minimum(μ))/(maximum(μ)-minimum(μ))
+        int_cols = getindex.([grads[i]],μ)
+        Makie.surface!(scene,collect(x_grid),collect(x_grid),scale*i*ones(N_grid,N_grid),color=reshape(int_cols,N_grid,N_grid)')
+        Makie.text!(scene,"p(f"*sub[i]*"|D)",position = (xmin,xmax,scale*i),textsize=tsize,rotation=(Vec3f0(1, 1, 1), pi*2/3))
+    end
+
+    Makie.lines!(scene,[xmin,xmin,xmax,xmax,xmin],[xmin,xmax,xmax,xmin,xmin],scale*(model.nLatent+1)*ones(5),lab="",color=:black,linewidth=2.0)
+    scene[Axis][:showgrid] = (false,false,false)
+    scene[Axis][:showaxis] = (false,false,false)
+    scene[Axis][:ticks][:textsize] = 0
+    scene[Axis][:names][:axisnames] = ("","","")
+    Makie.text!(scene,"data",position = (xmin,xmax,scale*(model.nLatent+1)),textsize=tsize,rotation=(Vec3f0(1, 1, 1), pi*2/3))
+    return scene
 end
 
 function callbackplot3D(model,iter)
@@ -167,13 +201,18 @@ function callbackplot3D(model,iter)
     global μ_fgrid = predict_f(model,X_grid,covf=false)
     global cols = reshape([RGB(permutedims(Vector(py_fgrid[i,:]))[collect(values(sort(model.likelihood.ind_mapping)))]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     global col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
-    global p3d= surface(x_grid,x_grid,(model.nLatent+1)*ones(N_grid),N_grid),fill_z=cols,colorbar=false,grid=:hide,framestyle=:none,yflip=false,dpi=dpi)
-    global p3d=plot!(p3d,X[:,1],X[:,2],zeros(size(X,1)),color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.3)
+    global grad = cgrad(vec(cols))
+    global scale = 4.0
+    # global p3d= Plots.surface(collect(x_grid),collect(x_grid),scale*(model.nLatent+1)*ones(N_grid,N_grid),grid=:hide,color=grad)#,colorbar=false,framestyle=:none,yflip=false,dpi=dpi)
+    global p3d= Plots.scatter3d(X_grid[:,1],X_grid[:,2],zeros(N_grid*N_grid),grid=:hide,color=grad.colors,marker=:square,markerstrokewidth=0,lab="")#,size=(600,2000))#,colorbar=false,framestyle=:none,,dpi=dpi)
+    grads = [cgrad([RGBA(1,1,1,0.5),RGBA(1,0,0,1)]),cgrad([RGBA(1,1,1,0.5),RGBA(0,1,0,1)]),cgrad([RGBA(1,1,1,0.5),RGBA(0,0,1,1)])]
     for i in 1:model.nLatent
-        surface!(p3d,collect(x_grid),collect(x_grid),i*ones(N_grid,N_grid),colorbar=false,fill_z=reshape(μ_fgrid[i],N_grid,N_grid))
+        Plots.surface!(p3d,collect(x_grid),collect(x_grid),scale*i*ones(N_grid,N_grid),colorbar=false,fill_z=reshape(μ_fgrid[collect(values(sort(model.likelihood.ind_mapping)))][i],N_grid,N_grid),color=grads[i],yflip=false)
     end
-    lims = (xlims(p1),ylims(p1))
-    xlims!(p3d,lims[1]);ylims!(p3d,lims[2])
+    # # lims = (xlims(p3d),ylims(p3d))
+    global p3d = Plots.plot3d!([xmin,xmin,xmax,xmax,xmin],[xmin,xmax,xmax,xmin,xmin],scale*(model.nLatent+2)*ones(5),lab="",color=:black,linewidth=2.0)
+    global p3d=Plots.scatter3d!(p3d,X[:,1],X[:,2],scale*(model.nLatent+2)*ones(size(X,1)),color=col_doc[y],lab="",markerstrokewidth=0.3,grid=:off,axis=:off)
+    # xlims!(p3d,lims[1]);ylims!(p3d,lims[2])
     # pfinal= contour3d!(pfinal,x_grid,x_grid,(model.nLatent+1)*ones(length(x_grid)),reshape(y_fgrid,N_grid,N_grid),clims=(0,100),t=:contour,colorbar=false,color=:gray,levels=10)
     # p1=plot!(p1,model.Z[1][:,1],model.Z[1][:,2],color=:black,t=:scatter,lab="")
     # frame(anim,p3d)
@@ -186,11 +225,11 @@ function gpflowcallbackplot(model,iter)
     y_fgrid = mapslices(argmax,py_fgrid,dims=2)
     global cols = reshape([RGB(py_fgrid[i,:]...) for i in 1:N_grid*N_grid],N_grid,N_grid)
     col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
-    global p1= plot(x_grid,x_grid,cols,t=:contour,colorbar=false,grid=:hide,framestyle=:none,yflip=false,dpi=dpi)
+    global p1= Plots.plot(x_grid,x_grid,cols,t=:contour,colorbar=false,grid=:hide,framestyle=:none,yflip=false,dpi=dpi)
     lims = (xlims(p1),ylims(p1))
-    p1=plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.3)
+    p1=Plots.plot!(p1,X[:,1],X[:,2],color=col_doc[y],t=:scatter,lab="",markerstrokewidth=0.3)
     # p1=plot!(p1,model[:feature][:Z][:value][:,1],model[:feature][:Z][:value][:,2],color=:black,t=:scatter,lab="")
-    p1= plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(-0,100),t=:contour,colorbar=false,color=:gray,levels=10)
+    p1= Plots.plot!(x_grid,x_grid,reshape(y_fgrid,N_grid,N_grid),clims=(-0,100),t=:contour,colorbar=false,color=:gray,levels=10)
     xlims!(p1,lims[1]);ylims!(p1,lims[2])
     frame(anim,p1)
     display(p1)
@@ -211,6 +250,14 @@ function epcallbackplot(model,iter)
     # frame(anim,p1)
     display(p1)
     return p1
+end
+
+function saveproba(y,y_test,σ,name,sc)
+    if sc
+        reorder = sortperm(parse.(Int64,string.(names(y))))
+        y = Matrix(y)[:,reorder]
+    end
+    writedlm("resultslikelihood/y_proba_$(σ)_$(name).txt",hcat(y_test,y))
 end
 
 function acc(y_test,y_pred)
@@ -273,11 +320,11 @@ function callbackgpflow(model,session,iter)
       push!(metrics,:err,1-gpflowacc(y_test,y_p))
       push!(elbos,:ELBO,session[:run](model[:likelihood_tensor]))
       model[:anchor](session)
-      p = Array(model[:kern][:lengthscales][:value])
-      for (j,p_j) in enumerate(p)
-          push!(kerparams,Symbol("l1_",j),p_j)
-      end
-      push!(kerparams,:v,Array(model[:kern][:variance][:value])[1])
+      # p = Array(model[:kern][:lengthscales][:value])
+      # for (j,p_j) in enumerate(p)
+          # push!(kerparams,Symbol("l1_",j),p_j)
+      # end
+      # push!(kerparams,:v,Array(model[:kern][:variance][:value])[1])
 end
 
 function initial_lengthscale(X)
@@ -304,6 +351,7 @@ Z = copy(alsmmodel.Z)
 t_alsm = @elapsed train!(alsmmodel,iterations=N_iterations,callback=callback)
 
 global py_alsm = proba_y(alsmmodel,X_test)
+saveproba(py_alsm,y_test,σ,"alsm",true)
 global y_alsm = predict_y(alsmmodel,X_test)
 AUC_alsm = 0
 println("Augmented model accuracy is $(acc(y_test,y_alsm)), loglike : $(loglike(y_test,py_alsm)) and AUC $(AUC_alsm) in $t_alsm s")
@@ -327,6 +375,7 @@ t_lsm = @elapsed train!(lsmmodel,iterations=N_iterations,callback=callback)
 # @profiler train!(lsmmodel,iterations=2)
 
 global py_lsm = proba_y(lsmmodel,X_test)
+saveproba(py_lsm,y_test,σ,"lsm",true)
 global y_lsm = predict_y(lsmmodel,X_test)
 AUC_lsm = 0#multiclassAUC(lsmmodel,y_test,py_lsm)
 println("Expected model accuracy is $(acc(y_test,y_lsm)), loglike : $(loglike(y_test,py_lsm)) and AUC $(AUC_lsm) in $t_lsm s")
@@ -336,9 +385,10 @@ lsm_map = title!(lsm_map,"LogSoftMax")
 lsm_metrics = deepcopy(metrics)
 lsm_kerparams = deepcopy(kerparams)
 lsm_elbo = deepcopy(elbos)
-ECE_lsm, MCE_lsm, cal_lsm, calh_lsm = calibration(y_test,py_lsm,nBins=nBins,plothist=true,plotline=true,meanonly=true,threshold=2)
+ECE_lsm, MCE_lsm, cal_lsm, calh_lsm, calconf_lsm = calibration(y_test,py_lsm,nBins=nBins,plothist=true,plotconf=true,plotline=true,meanonly=true,threshold=2)
 savefig(cal_lsm,"../plotslikelihood/cal_line_lsm_σ$σ.pdf")
 savefig(calh_lsm,"../plotslikelihood/cal_hist_lsm_σ$σ.pdf")
+savefig(calconf_lsm,"../plotslikelihood/cal_conf_lsm_σ$σ.pdf")
 
 ## SOFTMAX
 elbos = MVHistory()
@@ -349,6 +399,7 @@ smmodel.Z = Z
 t_sm = @elapsed train!(smmodel,iterations=N_iterations,callback=callback)
 # @profiler train!(smmodel,iterations=1)
 global py_sm = proba_y(smmodel,X_test)
+saveproba(py_sm,y_test,σ,"sm",true)
 global y_sm = predict_y(smmodel,X_test)
 AUC_sm = 0;#multiclassAUC(smmodel,y_test,py_sm)
 println("Expected model accuracy is $(acc(y_test,y_sm)), loglike : $(loglike(y_test,py_sm)) and AUC $(AUC_sm) in $t_sm s")
@@ -358,17 +409,19 @@ sm_map = title!(sm_map,"SoftMax")
 sm_metrics = deepcopy(metrics)
 sm_kerparams = deepcopy(kerparams)
 sm_elbo = deepcopy(elbos)
-ECE_sm, MCE_sm, cal_sm, calh_sm = calibration(y_test,py_sm,nBins=nBins,plothist=true,plotline=true,meanonly=true,threshold=2)
+ECE_sm, MCE_sm, cal_sm, calh_sm, calconf_sm = calibration(y_test,py_sm,nBins=nBins,plothist=true,plotline=true,plotconf=true,meanonly=true,threshold=2)
 savefig(cal_sm,"../plotslikelihood/cal_line_sm_σ$σ.pdf")
 savefig(calh_sm,"../plotslikelihood/cal_hist_sm_σ$σ.pdf")
+savefig(calconf_sm,"../plotslikelihood/cal_conf_sm_σ$σ.pdf")
 ## ROBUST MAX
 elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
-rmmodel = gpflow.models[:SVGP](X, Float64.(reshape(y.-1,(length(y),1))),kern=gpflow.kernels[:RBF](N_dim,lengthscales=l,ARD=true),likelihood=gpflow.likelihoods[:MultiClass](N_class),num_latent=N_class,Z=Z[1])
-t_rm = @elapsed run_nat_grads_with_adam(rmmodel,N_iterations,callback=callbackgpflow,Stochastic=false)
+rmmodel = gpflow.models[:SVGP](X, Float64.(reshape(y.-1,(length(y),1))),kern=gpflow.kernels[:Sum]([gpflow.kernels[:RBF](N_dim,lengthscales=l,ARD=true),gpflow.kernels[:White](N_dim)]),likelihood=gpflow.likelihoods[:MultiClass](N_class),num_latent=N_class,Z=Z[1])
+t_rm = @elapsed run_nat_grads_with_adam(rmmodel,N_iterations*10,callback=callbackgpflow,Stochastic=false)
 
 global py_rm = rmmodel[:predict_y](X_test)[1]
+saveproba(py_rm,y_test,σ,"rm",false)
 AUC_rm = 0#multiclassAUC(y_test,py_rm)
 println("Expected model accuracy is $(gpflowacc(y_test,py_rm)), loglike : $(gpflowloglike(y_test,py_rm)) and AUC $(AUC_rm) in $t_sm s")
 rm_map = gpflowcallbackplot(rmmodel,2)
@@ -377,9 +430,10 @@ rm_map = title!(rm_map,"RobustMax")
 rm_metrics = deepcopy(metrics)
 rm_kerparams = deepcopy(kerparams)
 rm_elbo = deepcopy(elbos)
-ECE_rm, MCE_rm, cal_rm, calh_rm = calibration(y_test,py_rm,nBins=nBins,plothist=true,plotline=true,gpflow=true,meanonly=true,threshold=2)
+ECE_rm, MCE_rm, cal_rm, calh_rm,calconf_rm = calibration(y_test,py_rm,nBins=nBins,plothist=true,plotline=true,plotconf=true,gpflow=true,meanonly=true,threshold=2)
 savefig(cal_rm,"../plotslikelihood/cal_line_rm_σ$σ.pdf")
 savefig(calh_rm,"../plotslikelihood/cal_hist_rm_σ$σ.pdf")
+savefig(calh_ep,"../plotslikelihood/cal_conf_rm_σ$σ.pdf")
 
 ## Multiclass-probit
 elbos = MVHistory()
@@ -389,6 +443,7 @@ kerparams = MVHistory()
 t_ep = @elapsed epmodel = R"epMGPCInternal($X, $(y),$(size(Z[1],1)),  X_test = $X_test, Y_test= $(y_test),  max_iters=2000, indpoints= FALSE, autotuning=TRUE)"
 
 global py_ep = Matrix(rcopy(R"predictMGPC($(epmodel),$(X_test))$prob"))
+saveproba(py_ep,y_test,σ,"ep",false)
 AUC_epm = 0#multiclassAUC(y_test,py_ep)
 println("Expected model accuracy is $(gpflowacc(y_test,py_ep)), loglike : $(gpflowloglike(y_test,py_ep)) and AUC $(AUC_ep) in $t_ep s")
 ep_map = epcallbackplot(epmodel,2)
@@ -398,13 +453,14 @@ ep_metrics = deepcopy(metrics)
 ep_kerparams = deepcopy(kerparams)
 ep_elbo = deepcopy(elbos)
 AUC_ep = 0
-ECE_ep, MCE_ep, cal_ep, calh_ep = calibration(y_test,py_ep,nBins=nBins,plothist=true,plotline=true,gpflow=true,meanonly=true,threshold=2)
+ECE_ep, MCE_ep, cal_ep, calh_ep, conf_ep= calibration(y_test,py_ep,nBins=nBins,plothist=true,plotline=true,plotconf=true,gpflow=true,meanonly=true,threshold=2)
 savefig(cal_ep,"../plotslikelihood/cal_line_ep_σ$σ.pdf")
 savefig(calh_ep,"../plotslikelihood/cal_hist_ep_σ$σ.pdf")
+savefig(conf_ep,"../plotslikelihood/cal_const_ep_σ$σ.pdf")
 
 ## Plotting part
 pmet_alsm = plot(alsm_metrics,title="Aug. LogSoftMax",markersize=0.0,linewidth=2.0)
-pmet_lsm = hline!(pmet_alsm,[bayes_error],lab="",line=(2.0,:red))
+pmet_alsm = hline!(pmet_alsm,[bayes_error],lab="",line=(2.0,:red))
 pmet_lsm = plot(lsm_metrics,title="LogSoftMax",markersize=0.0,linewidth=2.0)
 pmet_lsm = hline!(pmet_lsm,[bayes_error],lab="",line=(2.0,:red))
 pmet_sm = plot(sm_metrics,title="SoftMax",markersize=0.0,linewidth=2.0)

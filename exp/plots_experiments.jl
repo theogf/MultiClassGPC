@@ -323,7 +323,7 @@ end
 
 
 sizes = Dict("wine"=>(178,13,3),"vehicle"=>(846,18,4),"shuttle"=>(58000,9,7),"sensorless"=>(58509,48,11),"seismic"=>(98528,50,3),
-            "segment"=>(2310,19,7),"satimage"=>(6430,36,6),"mnist"=>(70000,784,10),"isolet"=>(7797,617,26),"iris"=>(150,4,3),
+            "segment"=>(2310,19,7),"satimage"=>(6430,36,6),"mnist"=>(70000,784,10),"kmnist"=>(70000,784,10),"isolet"=>(7797,617,26),"iris"=>(150,4,3),
             "glass"=>(214,9,6),"fashion-mnist"=>(70000,784,10),"dna"=>(3386,180,3),"cpu_act"=>(8192,21,56),
             "covtype"=>(851012,54,7),"combined"=>(98528,50,3),"acoustic"=>(98528,50,3))
 
@@ -377,7 +377,7 @@ function Table()
             end
 
             for m in Methods
-                mean_v = format(Res[m][MetricNames[metric]],precision=2); std_v = format(Res[m][MetricNames[metric]+1],precision=2) ;
+                mean_v = format(Res[m][MetricNames[metric]],precision=2);
                 if m == best_m
                     new_line = new_line*" & \$ \\mathbf{ $mean_v } \$"
                 else
@@ -393,7 +393,7 @@ function Table()
     end
     push!(full_table,"\\end{tabular}")
     push!(full_table,"\\end{adjustbox}")
-    push!(full_table,"\\caption{Average test prediction error (\$\\frac{\\text{\\# Misclassified TestPoints}}{\\text{\\# Test Points}}\$) and average negative test log-likelihood (NLL) along with one standard deviation for a time budget of 100 seconds. Best values highlighted in bold}")
+    push!(full_table,"\\caption{Convergence time, test prediction error (\$\\frac{\\text{\\# Misclassified TestPoints}}{\\text{\\# Test Points}}\$) and negative test log-likelihood (NLL). Best values highlighted in bold}")
     push!(full_table,"\\label{tab:performance}")
     push!(full_table,"\\end{table}")
     writedlm("Latex/Table.tex",full_table)
@@ -416,14 +416,13 @@ function ConvergenceDetector(dataset;time=true)
     end
     NSamples = sizes[dataset][1];
     N_epoch = small ? 1 : ceil(Int64,NSamples/200)
-    b = budget[dataset]
     for m in Methods
         println(m)
         Res =
         readdlm(loc[dataset][m]*dataset*"Dataset/Results_"*m*(m=="SCGPMC" ? "_shared" : "")*".txt")
         t = Res[:,1]
         i_budget = Handpicked[dataset][m]
-        ConvResults[m] = [t,DataConversion(Res[i_budget,3],"Accuracy"),
+        ConvResults[m] = [t[i_budget],DataConversion(Res[i_budget,3],"Accuracy"),
         DataConversion(Res[i_budget,5],"MeanL")]
     end
     return ConvResults
