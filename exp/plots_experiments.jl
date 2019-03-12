@@ -1,15 +1,24 @@
 using PyPlot,Statistics
 using Formatting
 using PyCall
+using Plots
+pyplot()
 plt[:style][:use]("seaborn-colorblind")
 cd(@__DIR__)
 if VERSION >= v"0.7.0-"
     using DelimitedFiles
 end
-NC =  Dict("EPGPMC"=>"SEP-MGPC","TTGPC"=>"Tensor Train GPC", "LogReg"=>"Linear Model",
-"SVGPMC"=>"SVI-MGPC","SCGPMC"=>"SC-MGPC","HSCGPMC"=>"Hybrid SC-MGPC","Accuracy"=>"Avg. Test Error","SCGPMCInd"=>"Independent Priors","SCGPMCShared"=>"Common Prior",
+
+cbpalette = [RGBA(p...) for p in [[0.0, 0.447059, 0.698039,1],
+ [0.0, 0.619608, 0.45098,1],
+ [0.835294, 0.368627, 0.0,1],
+ [0.8, 0.47451, 0.654902,1],
+ [0.941176, 0.894118, 0.258824,1],
+ [0.337255, 0.705882, 0.913725,1]]]
+NC =  Dict("EPGPMC"=>"HS (SEP)","TTGPC"=>"Tensor Train GPC", "LogReg"=>"Linear Model",
+"SVGPMC"=>"RM (SVI)","SCGPMC"=>"LSM (Ours)","HSCGPMC"=>"Hybrid SC-MGPC","Accuracy"=>"Avg. Test Error","SCGPMCInd"=>"Independent Priors","SCGPMCShared"=>"Common Prior",
 "MedianL"=>"Avg. Median Neg.\n Test Log-Likelihood","MeanL"=>"Avg. Neg. Test\n Log-Likelihood","AUC"=>"Multiclass AUC")
-colors=Dict("SVGPMC"=>"blue","SCGPMC"=>"red","HSCGPMC"=>"yellow","EPGPMC"=>"green", "TTGPC"=>"black","SCGPMCInd"=>"blue","SCGPMCShared"=>"red")
+colorindex=Dict("SVGPMC"=>3,"SCGPMC"=>1,"HSCGPMC"=>4,"EPGPMC"=>2, "TTGPC"=>5,"SCGPMCInd"=>1,"SCGPMCShared"=>3)
 linestyles=Dict(16=>":",32=>"--",64=>"-.",128=>"-")
 # linestyles=Dict(4=>"-",8=>":",10=>"-",16=>"-.",32=>"--",50=>":",64=>"-.",100=>"-.",128=>"-",200=>"--",256=>"--")
 metrics = Dict("Accuracy"=>3,"MeanL"=>5,"MedianL"=>7,"ELBO"=>9,"AUC"=>11, "ECE"=>13,"MCE"=>15)
@@ -76,42 +85,29 @@ markers=Dict(21=>"o",42=>"o",104=>"o",208=>"o",416=>"o",1040=>"o",2079=>"o")
 markers=Dict(8=>"o",15=>"o",38=>"o",76=>"o",152=>"o",381=>"o",761=>"o")
 linestyles=Dict(21=>"-",42=>"-",104=>"-",208=>"-",416=>"-",1040=>"-",2079=>"-")
 linestyles=Dict(8=>"-",15=>"-",38=>"-",76=>"-",152=>"-",381=>"-",761=>"-")
-function DoubleAxisPlot(metric,MPoints=[5,10,20,50,75,100,150,200,300,400])
-    scale= 2.0
-    dataset="segment"
+function DoubleAxisPlot(metric,dataset="shuttle",MPoints=[5,10,20,50,75,100,150,200,300,500])
+    scale= 3.0
     strat = ["Ind","Shared"]
     Nm = length(MPoints)
-    percent = [20,50,75,100,150,200,300,400]
     p = Dict("SCGPMCInd"=>Array{Float64,2}(undef,length(MPoints),2),"SCGPMCShared"=>Array{Float64,2}(undef,length(MPoints),2))
     for T in strat
         for (i,M) in enumerate(MPoints)
-            r = readdlm("../cluster/results_M$(M)_$(T)/AT_Experiment/$(dataset)Dataset/Results_SCGPMC.txt")
-            p["SCGPMC"*T][i,:] = r[end,[metrics[metric],1]]
+            r = readdlm("../cluster/results_M$(M)/AT_Experiment/$(dataset)Dataset/Results_SCGPMC"*(T=="Shared" ? "_shared" : "")*".txt")
+            p["SCGPMC"*T][i,:] = mapslices(maximum,r[:,[metrics[metric],1]],dims=1)
         end
         p["SCGPMC"*T][:,1]= DataConversion(p["SCGPMC"*T][:,1],metric)
     end
-
-    fig, ax1 = plt[:subplots]()
-    fig[:set_size_inches](16,8)
-    p1 = ax1[:plot](MPoints[1:Nm],p["SCGPMCInd"][:,1],label="",color="red",marker="x",linestyle="-",linewidth=2.0*scale,markersize=4.0*scale)
-    p2 = ax1[:plot](MPoints[1:Nm],p["SCGPMCShared"][:,1],label="",color="blue",marker="o",linestyle="-",linewidth=2.0*scale,markersize=4.0*scale)
-    ax1[:set_xlabel]("# inducing points",fontsize=20.0*scale)
-    ax1[:set_ylabel](NC[metric]*"\n(solid line)",fontsize=20.0*scale)
-    ax1[:tick_params]('y',fontsize=15.0*scale)
-    xticks(percent,["$v" for v in percent],fontsize=15.0*scale)
-    yticks(fontsize=15.0*scale)
-    ax2 = ax1[:twinx]()
-
-    p4 = ax2[:semilogy](MPoints[1:Nm],p["SCGPMCInd"][:,2],color="red",marker="x",linestyle="--",linewidth=2.0*scale,markersize=4.0*scale)
-    p3 = ax2[:semilogy](MPoints[1:Nm],p["SCGPMCShared"][:,2],color="blue",marker="o",linestyle="--",linewidth=2.0*scale,markersize=4.0*scale)
-    ax2[:set_ylabel]("Training time in Seconds\n(dashed line)",fontsize=18.0*scale)
-    ax2[:tick_params]('y',fontsize=20.0*scale)
-    yticks([10.0,100.0,1000.0],fontsize=15.0*scale)
-    ax1[:legend](["Ind. Hyperparameters","Shared Hyperparameters"],fontsize=17.0*scale,loc=7,markerscale=2.0*scale)
-    fig[:tight_layout]()
-    plt[:show]()
-    savefig("../plots/$(dataset)DoublePlot.png")
-    return fig
+    p1 = Plots.plot(MPoints[1:Nm],p["SCGPMCInd"][:,1],color=cbpalette[colorindex["SCGPMCInd"]],markershape=:cross,linestyle=:solid,linewidth=2.0*scale,markersize=4.0*scale,xaxis=("# inducing points",font(22)),yaxis=("Avg. Neg. Log-Likelihood\n(solid line)",font(22)),lab="Ind. Hyperparameters",legendfontsize=20,legend=:right,size=(937,500))
+    Plots.plot!(MPoints[1:Nm],p["SCGPMCShared"][:,1],color=cbpalette[colorindex["SCGPMCShared"]],markershape=:circle,linestyle=:solid,linewidth=2.0*scale,markersize=4.0*scale,lab="Shared Hyperparameters")
+    # PyPlot.xticks(MPoints,["$v" for v in MPoints],fontsize=15.0*scale)
+    # PyPlot.yticks(fontsize=15.0*scale)
+    p2 = Plots.twinx()
+    Plots.plot!(p2,MPoints[1:Nm],p["SCGPMCInd"][:,2],color=cbpalette[colorindex["SCGPMCInd"]],markershape=:cross,linestyle=:dash,linewidth=2.0*scale,markersize=4.0*scale,xaxis=(font(0)),yaxis=("Training time in Seconds\n(dashed line)",[10,100,1000],:log,font(22)),lab="")
+    Plots.plot!(p2,MPoints[1:Nm],p["SCGPMCShared"][:,2],color=cbpalette[colorindex["SCGPMCShared"]],markershape=:circle,linestyle=:dash,linewidth=2.0*scale,markersize=4.0*scale,lab="")
+    # Plots.legend(["Ind. Hyperparameters","Shared Hyperparameters"],fontsize=17.0*scale,markerscale=2.0*scale)
+    # PyPlot.savefig("../plots/$(dataset)DoublePlot.png")
+    Plots.savefig("doubleplot"*dataset*".pdf")
+    # return fig
 end
 
 true
@@ -151,9 +147,21 @@ end
 
 function PlotAll(;shared=false)
     file_list = readdlm("files_finished")
+    global allps = []
+    i = 1
     for file in file_list
-        PlotMetricvsTime(file,"Final",time=true,writing=true,corrections=false,shared=shared)
+        push!(allps,PlotMetricvsTime(file,"Final",time=true,writing=true,corrections=false,shared=shared,i=i))
+        i+=1
     end
+    p = Plots.plot(annotation=(0.5,0.5,Plots.text("Training Time in Seconds (log scale)",font(22))),axis=:hide,grid=:hide)
+    l = @layout [Plots.grid(3,5,heights=[0.05,0.47,0.48])
+                     p{0.05h}]
+    ps = vcat(getindex.(allps,[1]),getindex.(allps,[2]),getindex.(allps,[3]))
+    allps = ps
+    push!(allps,p)
+    p = Plots.plot(allps...,layout=l,size=(1953,850),dpi=300)
+    Plots.savefig(p,"Allconvplots.png")
+    p
 end
 
 function SmoothIt(x;window=3)
@@ -164,7 +172,7 @@ function SmoothIt(x;window=3)
     return smoothed
 end
 
-function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=false,corrections=false,shared=false)
+function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=false,corrections=false,shared=false,i=0)
     cd(@__DIR__)
     global Results = Dict{String,Any}();
     println("Working on dataset $dataset")
@@ -247,40 +255,30 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
         time_line = Dict(key=>time_line[1:length(Results[key][:,1])] for key in keys(Results))
     end
     if metric == "Final"
-        iter=1
-        giter = 2
+        ps=[]
+        push!(ps,Plots.plot(annotations=(0.5,0.5,Plots.text(DatasetNameCorrection[dataset],font(20,"Courier"))),axis=:hide,grid=:hide))
         for (mname,mmetric) in metrics
             if in(mname,FinalMetrics)
-                subplot(1,2,giter)
-                for name in sort(collect(keys(Results)),rev=true)
+                p=Plots.plot(xaxis=("",(0.5*minx,1.5*maxx),:log,font(20)),yaxis=(i==1 ? NC[mname] : "",font(20)),legend=:topright,legendfontsize=21.0,background_color_legend=RGBA(1,1,1,0.8),foreground_color_legend=RGBA(1,1,1,0.5))
+                for name in ["SCGPMC","SVGPMC","EPGPMC"]
                     # if name != "LogReg"
                         Results[name][:,mmetric] = DataConversion(Results[name][:,mmetric],mname)
                         x = [time_line[name][1:step:end];maxx]
                         my = [Results[name][1:step:end,mmetric];Results[name][end,mmetric]]
                         sy = [Results[name][1:step:end,mmetric+1];Results[name][end,mmetric+1]]/sqrt(10)
-                        new_p, = semilogx(x,my,color=colors[name],linewidth=gwidth,label=NC[name])
-                        fill_between(x,my-sy,my+sy,alpha=0.2,facecolor=colors[name])
-                        p[name]=new_p
+                        Plots.plot!(p,x,my,color=cbpalette[colorindex[name]],linewidth=3.0,label=NC[name],tickfontsize=17.0,legend=(mname=="MeanL"&&i==1) ? :topright : false)
+                        # fill_between(x,my-sy,my+sy,alpha=0.2,facecolor=colors[name])
                 end
-                if time
-                    xlabel("Training Time in Seconds",fontsize=20.0)
-                    xlim([0.5*minx,1.5*maxx])
-                    xticks(fontsize=15.0)
-                    yticks(fontsize=15.0,)
-                else
-                    xlabel("Iterations")
-                end
-                ylabel(NC[mname],fontsize=20.0)
-		if mname == "MeanL"
-			legpos = 2
-		else
-			legpos = 1
-		end
-                legend([p[key] for key in keys(Results)],
-                [NC[key] for key in keys(Results)],fontsize=20.0,loc=legpos)#;NC["TTGPC"];NC["LogReg"]])
-                giter-=1
+                push!(ps,p)
             end
         end
+        return ps
+        l = @layout([a{0.1h}; b c])
+        p = Plots.plot(ps...,layout=l,size=(938,400),topmargin=40,dpi=300)
+        Plots.savefig("../plots/"*(metric=="Final" ? "Final" : "")*"Convergence_vs_"*(time ? "time" : "iterations")*"_on_"*dataset*(shared ? "_shared" : "")*".png")
+        # PyPlot.suptitle(DatasetNameCorrection[dataset],fontsize=24.0,fontweight="semibold")
+        # PyPlot.savefig("../plots/"*(metric=="Final" ? "Final" : "")*"Convergence_vs_"*(time ? "time" : "iterations")*"_on_"*dataset*(shared ? "_shared" : "")*".png")
+        return p
     elseif metric != "All"
         for (mname,results) in Results
             semilogx(time_line[mname][1:step:end],results[1:step:end,metrics[metric]],color=colors[mname],label=NC[mname])

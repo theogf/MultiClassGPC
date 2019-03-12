@@ -3,11 +3,17 @@ using DelimitedFiles
 using Plots
 using Formatting
 R"library(CalibratR)"
+cbpalette = [RGB(p...) for p in [[0.0, 0.447059, 0.698039],
+ [0.0, 0.619608, 0.45098],
+ [0.835294, 0.368627, 0.0],
+ [0.8, 0.47451, 0.654902],
+ [0.941176, 0.894118, 0.258824],
+ [0.337255, 0.705882, 0.913725]]]
 
 dpi=600
 function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,plotconf=false,gpflow=false,meanonly=false,threshold=0,title="")
     edges = collect(range(0.0,1.0,length=nBins+1))
-    mean_bins = 0.5*(edges[2:end]+edges[1:end-1])
+    global mean_bins = 0.5*(edges[2:end]+edges[1:end-1])
     ntest = length(y_test)
     K = length(unique(y_test))
     global nP = [zeros(Int64,nBins) for _ in 1:K]
@@ -164,17 +170,17 @@ function plot_likelihood_diff()
     plot(ps...,link=:all,layout=(1,length(res)))
 end
 
-function plot_likelihood_diff2()
+function plot_likelihood_diff2(fontsize=20,height=600)
     σs = collect(0.1:0.1:0.7)
     nσ = length(σs)
     metrics = ["acc","ll","ece"]
-    global labels = Dict("acc"=>"Test Error","ll"=>"Neg. Log Likelihood","ece"=>"Expected Calibration Error","sm"=>"Softmax","lsm"=>"Logistic Softmax","rm"=>"Robust-max","ep"=>"Multinomial probit")
+    global labels = Dict("acc"=>"Test Error","ll"=>"Neg. Log Likelihood","ece"=>"Expected Calibration Error","sm"=>"Softmax","lsm"=>"Logistic\nSoftmax (LSM)","rm"=>"Robust-max (RM)","ep"=>"Heaviside(HS)")
     defdict = Dict("acc"=>Float64[],"ll"=>Float64[],"ece"=>Float64[])
-    global res = [("lsm",deepcopy(defdict)),("sm",deepcopy(defdict)),("rm",deepcopy(defdict)),("ep",deepcopy(defdict))]
+    global res = [("sm",deepcopy(defdict)),("lsm",deepcopy(defdict)),("rm",deepcopy(defdict)),("ep",deepcopy(defdict))]
+    colorindices = [4 1 3 2]
     for σ in σs
         global vals = readdlm("resultslikelihood/results_$σ.txt")
         for i in 1:length(res)
-            @show σ i
             push!(res[i][2]["acc"],1.0.-vals[1,i+1])
             push!(res[i][2]["ll"],-vals[2,i+1])
             push!(res[i][2]["ece"],vals[3,i+1])
@@ -182,17 +188,18 @@ function plot_likelihood_diff2()
     end
     ps = []
     for m in metrics
-        p = plot()
+        p = Plots.plot()
         for i in eachindex(res)
-            plot!(p,σs,res[i][2][m],xlabel="σ²",ylabel=labels[m],lab="",linewidth=2.0,color=i,xlims=(0.1,maximum(σs)))
+            Plots.plot!(p,σs,res[i][2][m],xaxis=("σ²",(0.1,maximum(σs)),font(fontsize)),yaxis=(labels[m],font(fontsize)),lab="",linewidth=4.0,color=cbpalette[colorindices[i]])
         end
-        savefig(p,"../plotslikelihood/"*m*"comparison.pdf")
+        Plots.savefig(p,"../plotslikelihood/"*m*"comparison.pdf")
         push!(ps,p)
     end
-    p = plot(ones(1,length(res)),ones(1,length(res)),linewidth=2.0,label=hcat(get.([labels],getindex.(res,[1]),nothing)...), grid=false, showaxis=false,legend=:left,legendfontsize=20.0,color=collect(1:length(res))')
-    savefig(p,"../plotslikelihood/legendcomparison.pdf")
+    p = Plots.plot(ones(1,length(res)),ones(1,length(res)),linewidth=4.0,label=hcat(get.([labels],getindex.(res,[1]),nothing)...), grid=false, showaxis=false,legend=:right,legendfontsize=fontsize,color=cbpalette[colorindices])
+    Plots.savefig(p,"../plotslikelihood/legendcomparison.pdf")
     push!(ps,p)
-    plot(ps...,link=:all,layout=(1,length(metrics)+1))
+    Plots.plot(ps...,layout=(2,2),size=(938,700),dpi=300)
+    Plots.savefig("comparison_likelihood.png")
 end
 
 function calibration_plots(dataset::String,write=false)
@@ -213,4 +220,35 @@ function calibration_plots(dataset::String,write=false)
     savefig(plot(values(plotsline)...),"resultsexps/"*dataset*"_linecalibration.png")
     display(plot(values(plotshist)...))
     savefig(plot(values(plotshist)...),"resultsexps/"*dataset*"_histcalibration.png")
+end
+
+
+function plots_likelihood_long(fontsize=25,h_size=1000)
+    methods = ["sm","lsm","rm","ep"]
+    mnames = Dict("sm"=>"Softmax","lsm"=>"Logistic Softmax (LSM)","rm"=>"Robust-Max (RM)","ep"=>"Heaviside (HS)")
+    moffset = Dict("sm"=>0.0,"lsm"=>0.06,"rm"=>0.05,"ep"=>0.07)
+    σ= 0.5
+    w_size = 1953
+    res = []
+    pconfs =[]
+    prs = []
+    ptitles =[]
+    for m in methods
+        data = readdlm("resultslikelihood/y_proba_$(σ)_$(m).txt")
+        y_test = Int64.(data[:,1])
+        y_p = data[:,2:end]
+        calibration(y_test,y_p,gpflow=true)
+        ptitle = Plots.plot(annotation=(0.50+moffset[m],0.35,text(mnames[m],font(23))),grid=:hide,axis=:hide)
+        push!(ptitles,ptitle)
+        pconf = Plots.bar(mean_bins,tot_bin./sum(tot_bin),lab="",yaxis=(m=="sm" ? "% of samples" : "",(0.0,1.0),0.2:0.2:1.0,font(fontsize)),xaxis=("Confidence",(0.0,1.0),font(fontsize)),bar_width=0.09,color=cbpalette[1],linewidth=0.0)
+        push!(pconfs,pconf)
+        K = length(unique(y_test))
+        threshold=4
+        pr = Plots.bar(mean_bins[tot_bin.>threshold],(sum(accs[k][tot_bin.>threshold] for k in 1:K)./sum(nP[k].!=0 for k in 1:K)[tot_bin.>threshold]) ,lab="",xaxis=("Confidence",(0,1),font(fontsize)),yaxis=((m=="sm") ? "Accuracy" : "" ,(0,1),0.2:0.2:1.0,font(fontsize)),bar_width=0.095,color=cbpalette[1],linewidth=0.0)
+        Plots.bar!(pr,mean_bins,mean_bins,fillalpha=0,color="red",lab="",bar_width=0.1,linewidth=4.0,linecolor="red")
+        push!(prs,pr)
+    end
+    l = @layout([a{0.1h} b{0.1h} c{0.1h} d{0.1h}; e f g h])
+    savefig(Plots.plot(ptitles...,pconfs...,size=(w_size,h_size/0.9),layout=l,dpi=300),"sampleperbin.png")
+    savefig(Plots.plot(prs...,size=(w_size,h_size),layout=(1,4),dpi=300),"reliabilitydiagram.png")
 end
