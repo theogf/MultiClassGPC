@@ -1,8 +1,8 @@
-using RCall
+# using RCall
 using DelimitedFiles
-using Plots
+# using Plots
 using Formatting
-R"library(CalibratR)"
+# R"library(CalibratR)"
 cbpalette = [RGB(p...) for p in [[0.0, 0.447059, 0.698039],
  [0.0, 0.619608, 0.45098],
  [0.835294, 0.368627, 0.0],
@@ -98,26 +98,26 @@ function calibration(y_test,y_pred;nBins::Int=10,plothist=false,plotline=false,p
 end
 
 
-function calibration_R(y_test,y_pred;nBins::Int=15,gpflow=false)
-    K = length(unique(y_test))
-    bias = 0
-    if count(y_test.==0) != 0
-        bias = 1
-    end
-    ECE = zeros(K)
-    MCE = zeros(K)
-    for k in unique(y_test).+bias
-        if gpflow
-            p = y_pred[:,k]
-        else
-            p = vec(y_pred[Symbol(k-bias)])
-        end
-        y = Int64.(y_test.==(k-bias))
-        ECE[k] = rcopy(R"CalibratR:::get_ECE_equal_width($y,$p,bins=10)")
-        MCE[k] = rcopy(R"CalibratR:::get_MCE_equal_width($y,$p,bins=10)")
-    end
-    return ECE,MCE
-end
+# function calibration_R(y_test,y_pred;nBins::Int=15,gpflow=false)
+#     K = length(unique(y_test))
+#     bias = 0
+#     if count(y_test.==0) != 0
+#         bias = 1
+#     end
+#     ECE = zeros(K)
+#     MCE = zeros(K)
+#     for k in unique(y_test).+bias
+#         if gpflow
+#             p = y_pred[:,k]
+#         else
+#             p = vec(y_pred[Symbol(k-bias)])
+#         end
+#         y = Int64.(y_test.==(k-bias))
+#         ECE[k] = rcopy(R"CalibratR:::get_ECE_equal_width($y,$p,bins=10)")
+#         MCE[k] = rcopy(R"CalibratR:::get_MCE_equal_width($y,$p,bins=10)")
+#     end
+#     return ECE,MCE
+# end
 
 function plot_likelihood_diff()
     σs = collect(0.1:0.1:0.7)
