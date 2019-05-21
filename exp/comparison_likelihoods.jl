@@ -8,7 +8,6 @@ using ValueHistories
 using Plots
 using Makie
 using LinearAlgebra
-using GradDescent
 using DelimitedFiles
 cd(@__DIR__)
 include("metrics.jl")
@@ -175,8 +174,10 @@ function callbackmakie(model)
     global y_fgrid = predict_y(model,X_grid)
     global py_fgrid = Matrix(proba_y(model,X_grid))[:,collect(values(sort(model.likelihood.ind_mapping)))]
     global μ_fgrid = predict_f(model,X_grid,covf=false)
-    global cols = reshape([parse.(Colorant,RGB(py_fgrid[i,:]...)) for i in 1:N_grid*N_grid],N_grid,N_grid)
-    global col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
+    global col_doc = [colorant"#389826",colorant"#9558B2",colorant"#CB3C33"]
+    # global cols = reshape([parse.(Colorant,RGB(py_fgrid[i,:]...)) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    global cols = reshape([sum(py_fgrid[i,:].*col_doc) for i in 1:N_grid*N_grid],N_grid,N_grid)
+    # global col_doc = [RGB(1.0,0.0,0.0),RGB(0.0,1.0,0.0),RGB(0.0,0.0,1.0)]
     global scale = 1.0
     global scene = Scene()
     Makie.scatter!(scene,[1,0,0],[0,1,0],[0,0,1],color=RGBA(1,1,1,0)) #For 3D plots
@@ -185,7 +186,8 @@ function callbackmakie(model)
     Makie.lines!(scene,[xmin,xmin,xmax,xmax,xmin],[xmin,xmax,xmax,xmin,xmin],zeros(5),lab="",color=:black,linewidth=2.0,shading=false)
     tsize = 0.8
     minalpha = 0.2
-    grads = [cgrad([RGBA(1,1,1,minalpha),RGBA(1,0,0,1)]),cgrad([RGBA(1,1,1,minalpha),RGBA(0,1,0,1)]),cgrad([RGBA(1,1,1,minalpha),RGBA(0,0,1,1)])]
+    grads = [cgrad([RGBA(1,1,1,minalpha),RGBA(col_doc[1],1)]),cgrad([RGBA(1,1,1,minalpha),RGBA(col_doc[2],1)]),cgrad([RGBA(1,1,1,minalpha),RGBA(col_doc[3],1)])]
+    # grads = [cgrad([RGBA(1,1,1,minalpha),RGBA(1,0,0,1)]),cgrad([RGBA(1,1,1,minalpha),RGBA(0,1,0,1)]),cgrad([RGBA(1,1,1,minalpha),RGBA(0,0,1,1)])]
     Makie.text!(scene,"p(y|D)",position=(xmin,xmax,0.0),textsize=tsize,rotation=(Vec3f0(1, 1, 1), pi*2/3))
     sub = ["₃","₂","₁"]
     for i in 1:model.nLatent
@@ -193,7 +195,7 @@ function callbackmakie(model)
         μ = (μ.-minimum(μ))/(maximum(μ)-minimum(μ))
         int_cols = getindex.([grads[i]],μ)
         Makie.surface!(scene,collect(x_grid),collect(x_grid),scale*i*ones(N_grid,N_grid),color=reshape(int_cols,N_grid,N_grid)',shading=false)
-        Makie.lines!(scene,[xmin,xmin,xmax,xmax,xmin],[xmin,xmax,xmax,xmin,xmin],scale*i*ones(5),lab="",color=:black,linewidth=2.0)
+        Makie.lines!(scene,[xmin,xmin,xmax,xmax,xmin],[xmin,xmax,xmax,xmin,xmin],scale*i*ones(5),lab="",color=:black,linewidth=2.0,overdraw=true)
         Makie.text!(scene,"p(f"*sub[i]*"|D)",position = (xmin,xmax,scale*i),textsize=tsize,rotation=(Vec3f0(1, 1, 1), pi*2/3))
     end
 
@@ -358,7 +360,7 @@ elbos = MVHistory()
 metrics = MVHistory()
 kerparams = MVHistory()
 
-alsmmodel = SVGP(X,y,kernel,AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),m,verbose=2,Autotuning=autotuning,IndependentPriors=!true)
+alsmmodel = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticVI(),m,verbose=2,Autotuning=autotuning,IndependentPriors=!true)
 Z = copy(alsmmodel.Z)
 t_alsm = @elapsed train!(alsmmodel,iterations=N_iterations,callback=callback)
 
