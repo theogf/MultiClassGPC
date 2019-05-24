@@ -1,9 +1,10 @@
-using PyPlot,Statistics
+using Statistics
 using Formatting
 using PyCall
+using LaTeXStrings
 using Plots
 pyplot()
-plt[:style][:use]("seaborn-colorblind")
+# plt.style.use("seaborn-colorblind")
 cd(@__DIR__)
 if VERSION >= v"0.7.0-"
     using DelimitedFiles
@@ -159,8 +160,9 @@ function PlotAll(;shared=false)
     ps = vcat(getindex.(allps,[1]),getindex.(allps,[2]),getindex.(allps,[3]))
     allps = ps
     push!(allps,p)
-    p = Plots.plot(allps...,layout=l,size=(1953,850),dpi=300)
-    Plots.savefig(p,"Allconvplots.png")
+    p = Plots.plot(allps...,layout=l,size=(1953,floor(Int64,0.8*850)),dpi=300)
+    # display(p)
+    Plots.savefig("Allconvplots.png")
     p
 end
 
@@ -218,7 +220,7 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
     if metric != "Final"
         f = figure("Convergence on dataset "*dataset*" ",figsize=(16,9));clf();
     else
-        f = figure("Convergence on dataset "*dataset*" ",figsize=(16,4.5));clf();
+        # f = figure("Convergence on dataset "*dataset*" ",figsize=(16,4.5));clf();
     end
     step=1
     if corrections
@@ -259,7 +261,7 @@ function PlotMetricvsTime(dataset,metric;final=false,AT=true,time=true,writing=f
         push!(ps,Plots.plot(annotations=(0.5,0.5,Plots.text(DatasetNameCorrection[dataset],font(20,"Courier"))),axis=:hide,grid=:hide))
         for (mname,mmetric) in metrics
             if in(mname,FinalMetrics)
-                p=Plots.plot(xaxis=("",(0.5*minx,1.5*maxx),:log,font(20)),yaxis=(i==1 ? NC[mname] : "",font(20)),legend=:topright,legendfontsize=21.0,background_color_legend=RGBA(1,1,1,0.8),foreground_color_legend=RGBA(1,1,1,0.5))
+                p=Plots.plot(xaxis=("",(0.5*minx,1.5*maxx),:log,font(20)),yaxis=(i==1 ? NC[mname] : "",font(20)),legend=:topright,legendfontsize=18.0,background_color_legend=RGBA(1,1,1,0.8),foreground_color_legend=RGBA(1,1,1,0.5))
                 for name in ["SCGPMC","SVGPMC","EPGPMC"]
                     # if name != "LogReg"
                         Results[name][:,mmetric] = DataConversion(Results[name][:,mmetric],mname)
