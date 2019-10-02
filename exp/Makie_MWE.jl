@@ -207,7 +207,7 @@ function final_phase(io,model,n)
     end
     #
 end
-model = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticVI(),m,verbose=2,Autotuning=autotuning,IndependentPriors=!true)
+model = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticVI(),m,verbose=2,IndependentPriors=!true)
 μ_fgrid = predict_f(model,X_grid,covf=false)
 grads = [cgrad([RGBA(1,1,1,0),RGBA(1,1,1,0)]),cgrad([RGBA(1,1,1,0),RGBA(1,1,1,0)]),cgrad([RGBA(1,1,1,0),RGBA(1,1,1,0)])]
 width = xmax-xmin
@@ -265,7 +265,7 @@ scene[Axis][:names][:axisnames] = ("","","")
 N_iterations = 300
 record(scene,"test.gif",framerate=15) do io
     init_phase(io,scene,15)
-    model = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticSVI(10,optimizer=InverseDecay(τ=50)),m,verbose=2,Autotuning=autotuning,IndependentPriors=!true)
+    global model = SVGP(X,y,kernel,LogisticSoftMaxLikelihood(),AnalyticSVI(10,optimizer=InverseDecay(τ=50)),m,verbose=2,IndependentPriors=!true)
     train!(model,iterations=N_iterations,callback=livemakie(io,scene))
     final_phase(io,model,30)
 end

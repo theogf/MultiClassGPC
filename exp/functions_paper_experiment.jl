@@ -81,10 +81,10 @@ include("initial_parameters.jl")
 function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
     y_cmap = countmap(y)
     if tm.MethodType == "BCGPMC"
-        tm.Model[i] = VGP(X,y,tm.Param["Kernel"],AugmentedLogisticSoftMaxLikelihood(),AnalyticInference(),Autotuning=tm.Param["Autotuning"],atfrequency=tm.Param["ATFrequency"],verbose=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? Float64.(zero(y)) : [0.0],IndependentPriors=tm.Param["independent"])
+        tm.Model[i] = VGP(X,y,tm.Param["Kernel"],LogisticSoftMaxLikelihood(),AnalyticVI(),Autotuning=tm.Param["Autotuning"],atfrequency=tm.Param["ATFrequency"],verbose=tm.Param["Verbose"],μ_init=tm.Param["FixedInitialization"] ? Float64.(zero(y)) : [0.0],IndependentPriors=tm.Param["independent"])
     elseif tm.MethodType == "SCGPMC" || tm.MethodType == "HSCGPMC"
         # tm.Param["time_init"] = @elapsed
-        tm.Model[i] = SVGP(X,y,tm.Param["Kernel"],AugmentedLogisticSoftMaxLikelihood(),tm.Param["Stochastic"] ? StochasticAnalyticInference(tm.Param["BatchSize"],optimizer=tm.Param["Optimizer"]) : AnalyticInference(),tm.Param["M"],
+        tm.Model[i] = SVGP(X,y,tm.Param["Kernel"],LogisticSoftMaxLikelihood(),tm.Param["Stochastic"] ? AnalyticSVI(tm.Param["BatchSize"],optimizer=tm.Param["Optimizer"]) : AnalyticVU(),tm.Param["M"],
             Autotuning=tm.Param["Autotuning"],OptimizeInducingPoints=tm.Param["PointOptimization"],
             atfrequency=tm.Param["ATFrequency"],verbose=tm.Param["Verbose"],IndependentPriors=tm.Param["independent"])
     elseif tm.MethodType == "SVGPMC"
@@ -94,12 +94,12 @@ function CreateModel!(tm::TestingModel,i,X,y) #tm testing_model, p parameters
             #Stochastic Sparse SVGPC model
             println("Creating stochastic SVGP")
             # tm.Param["time_init"] += @elapsed
-            tm.Model[i] = gpflow[:models].SVGP(X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow[:likelihoods].MultiClass(tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z,minibatch_size=tm.Param["BatchSize"])
+            tm.Model[i] = gpflow.models.SVGP(X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods.MultiClass(tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z,minibatch_size=tm.Param["BatchSize"])
         else
             #Sparse SVGPC model
             println("Creating full batch SVGP")
             # tm.Param["time_init"] += @elapsed
-            tm.Model[i] = gpflow[:models].SVGP(X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow[:likelihoods].MultiClass(tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z)
+            tm.Model[i] = gpflow.models.SVGP(X, Float64.(reshape(y,(length(y),1))),kern=deepcopy(tm.Param["Kernel"]),likelihood=gpflow.likelihoods.MultiClass(tm.Param["nClasses"]),num_latent=tm.Param["nClasses"],Z=Z)
         end
     elseif tm.MethodType == "TTGPMC"
         tm.Model[i] = 0
@@ -134,11 +134,11 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
     #
     ind_points_fixed ? model.feature.set_trainable(false) : nothing
     kernel_fixed ? model.kern.set_trainable.(false) : nothing
-    op_natgrad = gpflow[:training].NatGradOptimizer.(gamma=gamma).make_optimize_tensor(model, var_list=var_list)
+    op_natgrad = gpflow.training.NatGradOptimizer.(gamma=gamma).make_optimize_tensor(model, var_list=var_list)
     op_adam=0
 
     if !(ind_points_fixed && kernel_fixed)
-        op_adam = gpflow[:train].AdamOptimizer().make_optimize_tensor(model)
+        op_adam = gpflow.train.AdamOptimizer().make_optimize_tensor(model)
     end
 
     for i in 1:(10*iterations)
@@ -165,20 +165,6 @@ function run_nat_grads_with_adam(model,iterations; ind_points_fixed=true, kernel
         end
     end
     model.anchor(sess)
-end
-
-function trainhybrid(model,iterationsaug,iterations,callback)
-    model.train(iterations=iterationsaug,callback=callback)
-    new_model = AugmentedGaussianProcesses.SparseLogisticSoftMaxMultiClass(model.X,model.y,Stochastic=model.Stochastic,m=model.nFeatures,batchsize=model.nSamplesUsed,kernel=model.kernel[1],IndependentGPs=model.IndependentGPs,verbose=3,nEpochs=50,optimizer=0.5,Autotuning=true)
-    for field in fieldnames(typeof(model))
-        if field != :prev_params && field != :K_map && field != :g && field!= :h && field!= :τ && field != :Knn && field != :invK   && field != :train && field != :fstar && field != :predict && field != :predictproba && field != :elbo && field != :Autotuning
-            @eval $new_model.$field = $model.$field
-        end
-    end
-    println(model.kernel)
-    model = new_model
-    model.train(iterations=iterations,callback=callback)
-    return model
 end
 
 "Function to obtain the weighted KMeans for one class"
@@ -410,7 +396,7 @@ function WriteResults(tm::TestingModel,location,writing_order,kfold)
 end
 
 #Return Accuracy on test set
-function TestAccuracy(model, y_test, y_predic)
+function TestMetric(model, y_test, y_predic)
     score = 0
     # println(y_predic,y_test)
     for i in 1:length(y_test)
